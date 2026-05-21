@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { simulateRetirement } from "./simulation";
+import { solveScenario } from "./solvers";
 import type { RetirementScenario } from "./types";
 
 const baseScenario: RetirementScenario = {
@@ -31,6 +32,7 @@ const baseScenario: RetirementScenario = {
     startingMonthlyLifestyleSpending: 6_000,
     startingMonthlyPortfolioWithdrawal: 6_000,
   },
+  plannedExpenses: [],
   home: {
     enabled: false,
     currentHomeValue: 0,
@@ -77,5 +79,136 @@ describe("retirement simulator spending modes", () => {
     });
 
     expect(result.monthlyRows[0].socialSecurityIncome).toBeCloseTo(2_520, 0);
+  });
+
+  it("uses yearly travel expenses to reduce ending portfolio", () => {
+    const withoutTravel = simulateRetirement(baseScenario);
+    const withTravel = simulateRetirement({
+      ...baseScenario,
+      plannedExpenses: [
+        {
+          id: "travel",
+          name: "Travel",
+          category: "travel",
+          amount: 12_000,
+          startYear: 2026,
+          endYear: 2027,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(withTravel.totalPlannedExtras).toBe(24_000);
+    expect(withTravel.endingPortfolioBalance).toBeLessThan(withoutTravel.endingPortfolioBalance);
+  });
+
+  it("schedules every-ten-years vehicle expenses only in matching years", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      plan: { ...baseScenario.plan, planningEndAge: 81 },
+      plannedExpenses: [
+        {
+          id: "vehicle",
+          name: "Vehicle",
+          category: "vehicle",
+          amount: 45_000,
+          startYear: 2030,
+          endYear: 2040,
+          frequencyYears: 10,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+    const extrasByYear = new Map(result.yearlyRows.map((row) => [row.year, row.plannedExtrasExpense]));
+
+    expect(extrasByYear.get(2030)).toBe(45_000);
+    expect(extrasByYear.get(2040)).toBe(45_000);
+    expect(extrasByYear.get(2031)).toBe(0);
+  });
+
+  it("lowers solved lifestyle spending when planned extras are enabled", () => {
+    const baseline = solveScenario({
+      ...baseScenario,
+      spendingMode: { ...baseScenario.spendingMode, mode: "solve_max_lifestyle" },
+    });
+    const withExtras = solveScenario({
+      ...baseScenario,
+      spendingMode: { ...baseScenario.spendingMode, mode: "solve_max_lifestyle" },
+      plannedExpenses: [
+        {
+          id: "travel",
+          name: "Travel",
+          category: "travel",
+          amount: 12_000,
+          startYear: 2026,
+          endYear: 2027,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(withExtras.startingMonthlyLifestyleSpending).toBeLessThan(
+      baseline.startingMonthlyLifestyleSpending,
+    );
+  });
+
+  it("ignores disabled planned expenses", () => {
+    const baseline = simulateRetirement(baseScenario);
+    const withDisabledExpense = simulateRetirement({
+      ...baseScenario,
+      plannedExpenses: [
+        {
+          id: "disabled",
+          name: "Disabled",
+          category: "other",
+          amount: 100_000,
+          startYear: 2026,
+          endYear: 2026,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: false,
+        },
+      ],
+    });
+
+    expect(withDisabledExpense.totalPlannedExtras).toBe(0);
+    expect(withDisabledExpense.endingPortfolioBalance).toBeCloseTo(
+      baseline.endingPortfolioBalance,
+      0,
+    );
+  });
+
+  it("inflates planned expenses when enabled", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      portfolio: { ...baseScenario.portfolio, annualInflation: 0.12 },
+      plannedExpenses: [
+        {
+          id: "travel",
+          name: "Travel",
+          category: "travel",
+          amount: 12_000,
+          startYear: 2026,
+          endYear: 2027,
+          frequencyYears: 1,
+          inflateWithInflation: true,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(result.yearlyRows.find((row) => row.year === 2026)?.plannedExtrasExpense).toBeCloseTo(
+      12_000,
+      0,
+    );
+    expect(result.yearlyRows.find((row) => row.year === 2027)?.plannedExtrasExpense).toBeCloseTo(
+      13_440,
+      0,
+    );
   });
 });

@@ -4,6 +4,8 @@ export type SpendingMode =
   | "solve_max_lifestyle"
   | "solve_max_portfolio_withdrawal";
 
+export type PlannedExpenseCategory = "travel" | "vehicle" | "home" | "medical" | "family" | "other";
+
 export interface PersonInput {
   currentAge: number;
 }
@@ -44,6 +46,18 @@ export interface HomeInput {
   mortgagePayoffAge: number;
 }
 
+export interface PlannedExpenseInput {
+  id: string;
+  name: string;
+  category: PlannedExpenseCategory;
+  amount: number;
+  startYear: number;
+  endYear: number;
+  frequencyYears: number;
+  inflateWithInflation: boolean;
+  enabled: boolean;
+}
+
 export interface RetirementScenario {
   people: {
     person1: PersonInput;
@@ -53,6 +67,7 @@ export interface RetirementScenario {
   portfolio: PortfolioInput;
   socialSecurity: SocialSecurityInput;
   spendingMode: SpendingModeInput;
+  plannedExpenses: PlannedExpenseInput[];
   home: HomeInput;
 }
 
@@ -65,6 +80,8 @@ export interface MonthlyProjectionRow {
   startingPortfolioBalance: number;
   investmentGrowth: number;
   targetLifestyleSpending: number;
+  plannedExtrasExpense: number;
+  totalSpendingNeed: number;
   portfolioWithdrawalRequested: number;
   portfolioWithdrawalActual: number;
   federalTaxPayment: number;
@@ -84,6 +101,8 @@ export interface YearlyProjectionRow {
   person2Age: number;
   startingPortfolioBalance: number;
   investmentGrowth: number;
+  plannedExtrasExpense: number;
+  totalSpendingNeed: number;
   portfolioWithdrawal: number;
   federalTaxEstimate: number;
   socialSecurityIncome: number;
@@ -105,7 +124,19 @@ export interface SimulationResult {
   totalFederalTaxEstimate: number;
   totalAfterTaxIncome: number;
   totalSocialSecurityReceived: number;
+  totalPlannedExtras: number;
+  largestPlannedExtraYear?: number;
+  largestPlannedExtraAmount?: number;
+  plannedExtraEvents: PlannedExtraEvent[];
   totalShortfall: number;
   monthlyRows: MonthlyProjectionRow[];
   yearlyRows: YearlyProjectionRow[];
+}
+
+export interface PlannedExtraEvent {
+  year: number;
+  monthInYear: number;
+  name: string;
+  category: PlannedExpenseCategory;
+  amount: number;
 }

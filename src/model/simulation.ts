@@ -1,5 +1,6 @@
 import type {
   MonthlyProjectionRow,
+  PlannedExtraEvent,
   RetirementScenario,
   SimulationResult,
   YearlyProjectionRow,
@@ -84,6 +85,7 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
   let totalAfterTaxIncome = 0;
   let totalSocialSecurityReceived = 0;
   let totalShortfall = 0;
+  const plannedExtraEvents: PlannedExtraEvent[] = [];
   const yearlyTaxEstimates = calculateYearlyTaxEstimates({
     scenario,
     totalMonths,
@@ -106,6 +108,15 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
     const inflatedPortfolioWithdrawal =
       scenario.spendingMode.startingMonthlyPortfolioWithdrawal *
       Math.pow(1 + monthlyInflation, monthIndex);
+    const plannedExtras = plannedExtrasForMonth({
+      scenario,
+      year,
+      monthInYear,
+      monthlyInflation,
+    });
+    const plannedExtrasExpense = plannedExtras.reduce((sum, event) => sum + event.amount, 0);
+    plannedExtraEvents.push(...plannedExtras);
+    const totalSpendingNeed = targetLifestyleSpending + plannedExtrasExpense;
 
     const socialSecurityIncome =
       socialSecurityForPerson(
@@ -128,7 +139,7 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
       scenario.spendingMode.mode === "solve_max_lifestyle";
 
     const lifestylePortfolioWithdrawalRequested = isLifestyleMode
-      ? Math.max(0, targetLifestyleSpending - socialSecurityIncome)
+      ? Math.max(0, totalSpendingNeed - socialSecurityIncome)
       : inflatedPortfolioWithdrawal;
     const federalTaxPayment = yearlyTaxEstimates.get(year)?.monthlyTax ?? 0;
     const portfolioWithdrawalRequested =
@@ -145,7 +156,15 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
       0,
       portfolioWithdrawalActual - taxPaymentActual,
     );
-    const shortfall = Math.max(0, portfolioWithdrawalRequested - portfolioWithdrawalActual);
+    const withdrawalShortfall = Math.max(0, portfolioWithdrawalRequested - portfolioWithdrawalActual);
+    const fixedModeExtraShortfall = isLifestyleMode
+      ? 0
+      : Math.max(
+          0,
+          plannedExtrasExpense -
+            Math.max(0, portfolioWithdrawalActual + socialSecurityIncome - taxPaymentActual),
+        );
+    const shortfall = withdrawalShortfall + fixedModeExtraShortfall;
     const endingPortfolioBalance = Math.max(0, balanceAfterGrowth - portfolioWithdrawalActual);
 
     if (depletionMonth === undefined && portfolioWithdrawalRequested > 0 && endingPortfolioBalance <= 0) {
@@ -172,13 +191,18 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
       startingPortfolioBalance,
       investmentGrowth,
       targetLifestyleSpending,
+      plannedExtrasExpense,
+      totalSpendingNeed,
       portfolioWithdrawalRequested,
       portfolioWithdrawalActual,
       federalTaxPayment: taxPaymentActual,
       socialSecurityIncome,
       totalMonthlyIncomeAvailable: portfolioWithdrawalActual + socialSecurityIncome,
       afterTaxMonthlyIncomeAvailable:
-        portfolioWithdrawalActual + socialSecurityIncome - taxPaymentActual,
+        portfolioWithdrawalActual +
+        socialSecurityIncome -
+        taxPaymentActual -
+        (isLifestyleMode ? 0 : plannedExtrasExpense),
       shortfall,
       endingPortfolioBalance,
       homeValue,
@@ -190,13 +214,22 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
     portfolioBalance = endingPortfolioBalance;
     totalPortfolioWithdrawals += portfolioWithdrawalActual;
     totalFederalTaxEstimate += taxPaymentActual;
-    totalAfterTaxIncome += portfolioWithdrawalActual + socialSecurityIncome - taxPaymentActual;
+    totalAfterTaxIncome +=
+      portfolioWithdrawalActual +
+      socialSecurityIncome -
+      taxPaymentActual -
+      (isLifestyleMode ? 0 : plannedExtrasExpense);
     totalSocialSecurityReceived += socialSecurityIncome;
     totalShortfall += shortfall;
   }
 
   const yearlyRows = aggregateYearly(monthlyRows);
   const lastRow = monthlyRows[monthlyRows.length - 1];
+  const largestPlannedExtraRow = yearlyRows.reduce<YearlyProjectionRow | undefined>(
+    (largest, row) =>
+      !largest || row.plannedExtrasExpense > largest.plannedExtrasExpense ? row : largest,
+    undefined,
+  );
 
   return {
     startingMonthlyLifestyleSpending: scenario.spendingMode.startingMonthlyLifestyleSpending,
@@ -215,6 +248,16 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
     totalFederalTaxEstimate,
     totalAfterTaxIncome,
     totalSocialSecurityReceived,
+    totalPlannedExtras: monthlyRows.reduce((sum, row) => sum + row.plannedExtrasExpense, 0),
+    largestPlannedExtraYear:
+      largestPlannedExtraRow && largestPlannedExtraRow.plannedExtrasExpense > 0
+        ? largestPlannedExtraRow.year
+        : undefined,
+    largestPlannedExtraAmount:
+      largestPlannedExtraRow && largestPlannedExtraRow.plannedExtrasExpense > 0
+        ? largestPlannedExtraRow.plannedExtrasExpense
+        : undefined,
+    plannedExtraEvents,
     totalShortfall,
     monthlyRows,
     yearlyRows,
@@ -271,8 +314,15 @@ function calculateYearlyTaxEstimates({
     const inflatedPortfolioWithdrawal =
       scenario.spendingMode.startingMonthlyPortfolioWithdrawal *
       Math.pow(1 + monthlyInflation, monthIndex);
+    const plannedExtrasExpense = plannedExtrasForMonth({
+      scenario,
+      year,
+      monthInYear: (monthIndex % 12) + 1,
+      monthlyInflation,
+    }).reduce((sum, event) => sum + event.amount, 0);
+    const totalSpendingNeed = targetLifestyleSpending + plannedExtrasExpense;
     const ordinaryIncomeBeforeTax = isLifestyleMode
-      ? Math.max(0, targetLifestyleSpending - socialSecurityIncome)
+      ? Math.max(0, totalSpendingNeed - socialSecurityIncome)
       : inflatedPortfolioWithdrawal;
     const existing = byYear.get(year) ?? {
       months: 0,
@@ -333,6 +383,8 @@ function aggregateYearly(monthlyRows: MonthlyProjectionRow[]): YearlyProjectionR
       person2Age: first.person2Age,
       startingPortfolioBalance: first.startingPortfolioBalance,
       investmentGrowth: rows.reduce((sum, row) => sum + row.investmentGrowth, 0),
+      plannedExtrasExpense: rows.reduce((sum, row) => sum + row.plannedExtrasExpense, 0),
+      totalSpendingNeed: rows.reduce((sum, row) => sum + row.totalSpendingNeed, 0),
       portfolioWithdrawal: rows.reduce((sum, row) => sum + row.portfolioWithdrawalActual, 0),
       federalTaxEstimate: rows.reduce((sum, row) => sum + row.federalTaxPayment, 0),
       socialSecurityIncome: rows.reduce((sum, row) => sum + row.socialSecurityIncome, 0),
@@ -346,4 +398,38 @@ function aggregateYearly(monthlyRows: MonthlyProjectionRow[]): YearlyProjectionR
       homeEquity: last.homeEquity,
     };
   });
+}
+
+function plannedExtrasForMonth({
+  scenario,
+  year,
+  monthInYear,
+  monthlyInflation,
+}: {
+  scenario: RetirementScenario;
+  year: number;
+  monthInYear: number;
+  monthlyInflation: number;
+}): PlannedExtraEvent[] {
+  if (monthInYear !== 1) return [];
+
+  return (scenario.plannedExpenses ?? [])
+    .filter((expense) => {
+      if (!expense.enabled) return false;
+      if (year < expense.startYear || year > expense.endYear) return false;
+      return (year - expense.startYear) % expense.frequencyYears === 0;
+    })
+    .map((expense) => {
+      const monthsSinceCurrentYear = Math.max(0, (year - scenario.plan.currentYear) * 12);
+      const inflatedAmount = expense.inflateWithInflation
+        ? expense.amount * Math.pow(1 + monthlyInflation, monthsSinceCurrentYear)
+        : expense.amount;
+      return {
+        year,
+        monthInYear,
+        name: expense.name,
+        category: expense.category,
+        amount: inflatedAmount,
+      };
+    });
 }

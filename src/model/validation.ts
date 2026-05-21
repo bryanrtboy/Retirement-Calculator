@@ -34,6 +34,21 @@ export const scenarioSchema = z.object({
     startingMonthlyLifestyleSpending: z.number().min(0),
     startingMonthlyPortfolioWithdrawal: z.number().min(0),
   }),
+  plannedExpenses: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        name: z.string().min(1),
+        category: z.enum(["travel", "vehicle", "home", "medical", "family", "other"]),
+        amount: z.number().min(0),
+        startYear: z.number().int().min(1900).max(2200),
+        endYear: z.number().int().min(1900).max(2200),
+        frequencyYears: z.number().int().min(1).max(100),
+        inflateWithInflation: z.boolean(),
+        enabled: z.boolean(),
+      }),
+    )
+    .default([]),
   home: z.object({
     enabled: z.boolean(),
     currentHomeValue: z.number().min(0),

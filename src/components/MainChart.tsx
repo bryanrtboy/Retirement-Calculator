@@ -48,6 +48,7 @@ export function MainChart({ scenario, rows }: MainChartProps) {
       socialSecurity: row.socialSecurityIncome,
       withdrawal: Math.max(0, row.portfolioWithdrawalActual - row.federalTaxPayment),
       federalTax: row.federalTaxPayment,
+      plannedExtras: row.plannedExtrasExpense,
       shortfall: row.shortfall,
       incomeOrSpending: isLifestyleMode
         ? row.targetLifestyleSpending
@@ -162,6 +163,16 @@ export function MainChart({ scenario, rows }: MainChartProps) {
                 isAnimationActive
                 animationDuration={350}
                 type="monotone"
+                dataKey="plannedExtras"
+                name="Planned extras"
+                stroke="#c49a2c"
+                strokeWidth={2}
+                dot={false}
+              />
+              <Line
+                isAnimationActive
+                animationDuration={350}
+                type="monotone"
                 dataKey="socialSecurity"
                 name="Social Security"
                 stroke="#835b9b"
@@ -211,6 +222,15 @@ export function MainChart({ scenario, rows }: MainChartProps) {
                 name="Federal tax estimate"
                 stackId="income"
                 fill="#2f8f7b"
+              />
+              <Bar
+                isAnimationActive
+                animationDuration={350}
+                yAxisId="cashflow"
+                dataKey="plannedExtras"
+                name="Planned extras"
+                stackId="income"
+                fill="#c49a2c"
               />
               <Bar
                 isAnimationActive
@@ -269,6 +289,7 @@ function labelFor(key: string) {
     incomeOrSpending: "After-tax income / spending",
     withdrawal: "Portfolio withdrawal for spending",
     federalTax: "Federal tax estimate",
+    plannedExtras: "Planned extras",
     socialSecurity: "Social Security",
     shortfall: "Shortfall",
   };

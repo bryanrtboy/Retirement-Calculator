@@ -10,41 +10,76 @@ import { solveScenario } from "./model/solvers";
 import type { RetirementScenario } from "./model/types";
 import { scenarioSchema } from "./model/validation";
 
-const storageKey = "retirement-runway-scenario-v1";
+const storageKey = "retirement-runway-scenario-v2";
 
 const defaultScenario: RetirementScenario = {
   people: {
-    person1: { currentAge: 65 },
-    person2: { currentAge: 63 },
+    person1: { currentAge: 62 },
+    person2: { currentAge: 62 },
   },
   plan: {
     currentYear: new Date().getFullYear(),
-    planningEndAge: 95,
+    planningEndAge: 90,
     targetEndingPortfolioBalance: 0,
   },
   portfolio: {
-    retirementBalance: 1_200_000,
-    taxableSavingsBalance: 100_000,
+    retirementBalance: 450_000,
+    taxableSavingsBalance: 60_000,
     includeTaxableInPortfolio: true,
-    annualNominalReturn: 0.055,
+    annualNominalReturn: 0.05,
     annualInflation: 0.03,
   },
   socialSecurity: {
-    person1MonthlyBenefit: 2_800,
+    person1MonthlyBenefit: 2_200,
     person1ClaimingAge: 67,
-    person2MonthlyBenefit: 2_100,
+    person2MonthlyBenefit: 1_600,
     person2ClaimingAge: 67,
     annualCOLA: 0.03,
   },
   spendingMode: {
     mode: "maintain_lifestyle",
-    startingMonthlyLifestyleSpending: 7_500,
-    startingMonthlyPortfolioWithdrawal: 5_500,
+    startingMonthlyLifestyleSpending: 5_500,
+    startingMonthlyPortfolioWithdrawal: 3_500,
   },
+  plannedExpenses: [
+    {
+      id: "travel",
+      name: "Travel",
+      category: "travel",
+      amount: 5_000,
+      startYear: new Date().getFullYear(),
+      endYear: 2055,
+      frequencyYears: 1,
+      inflateWithInflation: true,
+      enabled: false,
+    },
+    {
+      id: "vehicle",
+      name: "Vehicle",
+      category: "vehicle",
+      amount: 30_000,
+      startYear: 2030,
+      endYear: 2050,
+      frequencyYears: 10,
+      inflateWithInflation: true,
+      enabled: false,
+    },
+    {
+      id: "renovation",
+      name: "Renovation",
+      category: "home",
+      amount: 12_000,
+      startYear: 2027,
+      endYear: 2045,
+      frequencyYears: 3,
+      inflateWithInflation: true,
+      enabled: false,
+    },
+  ],
   home: {
     enabled: true,
-    currentHomeValue: 650_000,
-    mortgageBalance: 180_000,
+    currentHomeValue: 350_000,
+    mortgageBalance: 120_000,
     annualHomeAppreciation: 0.025,
     mortgagePayoffAge: 75,
   },

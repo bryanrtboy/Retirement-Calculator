@@ -1,6 +1,23 @@
-import { Calculator, Home, Landmark, LineChart, RotateCcw, Users } from "lucide-react";
+import {
+  Calculator,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  Landmark,
+  LineChart,
+  Plus,
+  RotateCcw,
+  Trash2,
+  Users,
+} from "lucide-react";
 import type { Dispatch, SetStateAction } from "react";
-import type { RetirementScenario, SpendingMode } from "../model/types";
+import { useState } from "react";
+import type {
+  PlannedExpenseCategory,
+  PlannedExpenseInput,
+  RetirementScenario,
+  SpendingMode,
+} from "../model/types";
 import { cn } from "../lib/utils";
 import { adjustedSocialSecurityBenefit } from "../model/simulation";
 
@@ -34,6 +51,7 @@ const modes: Array<{ id: SpendingMode; title: string; description: string }> = [
 ];
 
 export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanelProps) {
+  const [extrasOpen, setExtrasOpen] = useState(false);
   const update = <T,>(path: string[], value: T) => {
     onScenarioChange((previous) => {
       const next = structuredClone(previous) as RetirementScenario;
@@ -44,6 +62,9 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
       cursor[path[path.length - 1]] = value;
       return next;
     });
+  };
+  const setPlannedExpenses = (plannedExpenses: PlannedExpenseInput[]) => {
+    onScenarioChange((previous) => ({ ...previous, plannedExpenses }));
   };
 
   return (
@@ -64,7 +85,45 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
         </button>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-4">
+        <SpendingModeSection
+          mode={scenario.spendingMode.mode}
+          onChange={(mode) => update(["spendingMode", "mode"], mode)}
+        />
+
+        <Section icon={<Calculator />} title="Mode Amounts">
+          {(scenario.spendingMode.mode === "maintain_lifestyle" ||
+            scenario.spendingMode.mode === "solve_max_lifestyle") && (
+            <CurrencyField
+              label={
+                scenario.spendingMode.mode === "solve_max_lifestyle"
+                  ? "Solver starting guess"
+                  : "Target monthly spending"
+              }
+              value={scenario.spendingMode.startingMonthlyLifestyleSpending}
+              disabled={scenario.spendingMode.mode === "solve_max_lifestyle"}
+              onChange={(value) =>
+                update(["spendingMode", "startingMonthlyLifestyleSpending"], value)
+              }
+            />
+          )}
+          {(scenario.spendingMode.mode === "fixed_portfolio_withdrawal" ||
+            scenario.spendingMode.mode === "solve_max_portfolio_withdrawal") && (
+            <CurrencyField
+              label={
+                scenario.spendingMode.mode === "solve_max_portfolio_withdrawal"
+                  ? "Solver starting guess"
+                  : "Starting monthly portfolio withdrawal"
+              }
+              value={scenario.spendingMode.startingMonthlyPortfolioWithdrawal}
+              disabled={scenario.spendingMode.mode === "solve_max_portfolio_withdrawal"}
+              onChange={(value) =>
+                update(["spendingMode", "startingMonthlyPortfolioWithdrawal"], value)
+              }
+            />
+          )}
+        </Section>
+
         <Section icon={<Users />} title="Household">
           <NumberField
             label="Person 1 current age"
@@ -164,62 +223,13 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
           />
         </Section>
 
-        <section>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Spending Mode</h3>
-          <div className="grid gap-2">
-            {modes.map((mode) => (
-              <button
-                type="button"
-                key={mode.id}
-                className={cn(
-                  "rounded-md border p-3 text-left transition",
-                  scenario.spendingMode.mode === mode.id
-                    ? "border-primary bg-primary/8 shadow-sm"
-                    : "border-border bg-white hover:border-primary/60",
-                )}
-                onClick={() => update(["spendingMode", "mode"], mode.id)}
-              >
-                <span className="block text-sm font-semibold">{mode.title}</span>
-                <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {mode.description}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <Section icon={<Calculator />} title="Mode Amounts">
-          {(scenario.spendingMode.mode === "maintain_lifestyle" ||
-            scenario.spendingMode.mode === "solve_max_lifestyle") && (
-            <CurrencyField
-              label={
-                scenario.spendingMode.mode === "solve_max_lifestyle"
-                  ? "Solver starting guess"
-                  : "Target monthly spending"
-              }
-              value={scenario.spendingMode.startingMonthlyLifestyleSpending}
-              disabled={scenario.spendingMode.mode === "solve_max_lifestyle"}
-              onChange={(value) =>
-                update(["spendingMode", "startingMonthlyLifestyleSpending"], value)
-              }
-            />
-          )}
-          {(scenario.spendingMode.mode === "fixed_portfolio_withdrawal" ||
-            scenario.spendingMode.mode === "solve_max_portfolio_withdrawal") && (
-            <CurrencyField
-              label={
-                scenario.spendingMode.mode === "solve_max_portfolio_withdrawal"
-                  ? "Solver starting guess"
-                  : "Starting monthly portfolio withdrawal"
-              }
-              value={scenario.spendingMode.startingMonthlyPortfolioWithdrawal}
-              disabled={scenario.spendingMode.mode === "solve_max_portfolio_withdrawal"}
-              onChange={(value) =>
-                update(["spendingMode", "startingMonthlyPortfolioWithdrawal"], value)
-              }
-            />
-          )}
-        </Section>
+        <PlannedExtrasSection
+          open={extrasOpen}
+          onOpenChange={setExtrasOpen}
+          currentYear={scenario.plan.currentYear}
+          plannedExpenses={scenario.plannedExpenses}
+          onChange={setPlannedExpenses}
+        />
 
         <Section icon={<Home />} title="Home Tracking">
           <CheckboxField
@@ -251,6 +261,230 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
       </div>
     </aside>
   );
+}
+
+function SpendingModeSection({
+  mode,
+  onChange,
+}: {
+  mode: SpendingMode;
+  onChange: (mode: SpendingMode) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-primary/25 bg-primary/8 p-3 shadow-sm">
+      <div className="mb-3">
+        <h3 className="text-sm font-semibold text-primary">Spending Mode</h3>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Choose how Social Security interacts with your monthly amount.
+        </p>
+      </div>
+      <div className="grid gap-2">
+        {modes.map((option) => (
+          <button
+            type="button"
+            key={option.id}
+            className={cn(
+              "rounded-md border p-3 text-left transition",
+              mode === option.id
+                ? "border-primary bg-white shadow-sm"
+                : "border-primary/15 bg-white/60 hover:border-primary/60 hover:bg-white",
+            )}
+            onClick={() => onChange(option.id)}
+          >
+            <span className="block text-sm font-semibold">{option.title}</span>
+            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+              {option.description}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const categoryLabels: Record<PlannedExpenseCategory, string> = {
+  travel: "Travel",
+  vehicle: "Vehicle",
+  home: "Home",
+  medical: "Medical",
+  family: "Family",
+  other: "Other",
+};
+
+const quickAdds: Array<{
+  label: string;
+  category: PlannedExpenseCategory;
+  name: string;
+  amount: number;
+  frequencyYears: number;
+}> = [
+  { label: "Add travel", category: "travel", name: "Travel", amount: 12_000, frequencyYears: 1 },
+  { label: "Add vehicle", category: "vehicle", name: "Vehicle", amount: 45_000, frequencyYears: 10 },
+  { label: "Add home project", category: "home", name: "Home project", amount: 25_000, frequencyYears: 3 },
+  { label: "Add custom", category: "other", name: "Custom expense", amount: 10_000, frequencyYears: 1 },
+];
+
+function PlannedExtrasSection({
+  open,
+  onOpenChange,
+  currentYear,
+  plannedExpenses,
+  onChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentYear: number;
+  plannedExpenses: PlannedExpenseInput[];
+  onChange: (expenses: PlannedExpenseInput[]) => void;
+}) {
+  const enabledExpenses = plannedExpenses.filter((expense) => expense.enabled);
+  const firstYearTotal = enabledExpenses
+    .filter((expense) => isExpenseScheduled(expense, currentYear))
+    .reduce((sum, expense) => sum + expense.amount, 0);
+  const summary = `${enabledExpenses.length} planned extras · ${money.format(firstYearTotal)} first-year total`;
+
+  const updateExpense = <K extends keyof PlannedExpenseInput>(
+    id: string,
+    key: K,
+    value: PlannedExpenseInput[K],
+  ) => {
+    onChange(
+      plannedExpenses.map((expense) =>
+        expense.id === id ? { ...expense, [key]: value } : expense,
+      ),
+    );
+  };
+
+  const addExpense = (template: (typeof quickAdds)[number]) => {
+    onChange([
+      ...plannedExpenses,
+      {
+        id: `${template.category}-${Date.now()}`,
+        name: template.name,
+        category: template.category,
+        amount: template.amount,
+        startYear: currentYear,
+        endYear: currentYear + 25,
+        frequencyYears: template.frequencyYears,
+        inflateWithInflation: true,
+        enabled: true,
+      },
+    ]);
+    onOpenChange(true);
+  };
+
+  return (
+    <section className="rounded-lg border border-border bg-white/70 p-3 shadow-sm">
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-3 text-left"
+        onClick={() => onOpenChange(!open)}
+      >
+        <span>
+          <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            {open ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
+            Planned Extras
+          </span>
+          <span className="mt-1 block text-xs leading-5 text-muted-foreground">{summary}</span>
+        </span>
+      </button>
+
+      {open && (
+        <div className="mt-3 grid gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            {quickAdds.map((template) => (
+              <button
+                key={template.label}
+                type="button"
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-border bg-white px-2 text-xs font-medium text-muted-foreground shadow-sm transition hover:border-primary hover:text-primary"
+                onClick={() => addExpense(template)}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {template.label}
+              </button>
+            ))}
+          </div>
+
+          {plannedExpenses.length === 0 ? (
+            <p className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+              Add travel, vehicle, renovation, or custom expenses here. They stay separate from base monthly lifestyle spending.
+            </p>
+          ) : (
+            plannedExpenses.map((expense) => (
+              <article key={expense.id} className="grid gap-3 rounded-md border border-border bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <CheckboxField
+                    label={`${categoryLabels[expense.category]} enabled`}
+                    checked={expense.enabled}
+                    onChange={(value) => updateExpense(expense.id, "enabled", value)}
+                  />
+                  <button
+                    type="button"
+                    className="grid h-9 w-9 place-items-center rounded-md border border-border text-muted-foreground transition hover:border-destructive hover:text-destructive"
+                    onClick={() => onChange(plannedExpenses.filter((item) => item.id !== expense.id))}
+                    title="Remove planned extra"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <TextField
+                  label="Name"
+                  value={expense.name}
+                  onChange={(value) => updateExpense(expense.id, "name", value)}
+                />
+                <SelectField
+                  label="Category"
+                  value={expense.category}
+                  options={Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))}
+                  onChange={(value) =>
+                    updateExpense(expense.id, "category", value as PlannedExpenseCategory)
+                  }
+                />
+                <CurrencyField
+                  label="Amount"
+                  value={expense.amount}
+                  onChange={(value) => updateExpense(expense.id, "amount", value)}
+                />
+                <div className="grid gap-2">
+                  <NumberField
+                    label="Every years"
+                    value={expense.frequencyYears}
+                    onChange={(value) => updateExpense(expense.id, "frequencyYears", Math.max(1, Math.round(value)))}
+                  />
+                  <NumberField
+                    label="Start"
+                    value={expense.startYear}
+                    onChange={(value) => updateExpense(expense.id, "startYear", Math.round(value))}
+                  />
+                  <NumberField
+                    label="End"
+                    value={expense.endYear}
+                    onChange={(value) => updateExpense(expense.id, "endYear", Math.round(value))}
+                  />
+                </div>
+                <CheckboxField
+                  label="Inflate with inflation"
+                  checked={expense.inflateWithInflation}
+                  onChange={(value) => updateExpense(expense.id, "inflateWithInflation", value)}
+                />
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {money.format(expense.amount)} every {expense.frequencyYears} year
+                  {expense.frequencyYears === 1 ? "" : "s"} from {expense.startYear} to{" "}
+                  {expense.endYear}, paid in January.
+                </p>
+              </article>
+            ))
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function isExpenseScheduled(expense: PlannedExpenseInput, year: number) {
+  if (year < expense.startYear || year > expense.endYear) return false;
+  return (year - expense.startYear) % expense.frequencyYears === 0;
 }
 
 const money = new Intl.NumberFormat("en-US", {
@@ -297,7 +531,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="border-t border-border pt-4 first:border-t-0 first:pt-0">
+    <section className="rounded-lg border border-border bg-white/70 p-3 shadow-sm">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
         <span className="[&>svg]:h-4 [&>svg]:w-4 [&>svg]:text-primary">{icon}</span>
         {title}
@@ -322,7 +556,7 @@ function NumberField({
     <label className="grid gap-1 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <input
-        className="h-10 rounded-md border border-input bg-white px-3 text-right shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted"
+        className="h-10 w-full min-w-0 rounded-md border border-input bg-white px-3 text-right shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted"
         type="number"
         value={Number.isFinite(value) ? value : 0}
         disabled={disabled}
@@ -334,6 +568,57 @@ function NumberField({
 
 function CurrencyField(props: Parameters<typeof NumberField>[0]) {
   return <NumberField {...props} />;
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <input
+        className="h-10 w-full min-w-0 rounded-md border border-input bg-white px-3 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <select
+        className="h-10 w-full min-w-0 rounded-md border border-input bg-white px-3 shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
 }
 
 function PercentField({

@@ -25,6 +25,7 @@ http://127.0.0.1:5173/
 - Adjusts Social Security benefits based on claiming age.
 - Applies inflation, investment return, and Social Security COLA monthly.
 - Tracks federal tax estimates.
+- Supports planned extras for irregular expenses such as travel, vehicles, renovations, and major purchases.
 - Shows portfolio depletion, ending balance, total withdrawals, total Social Security, and estimated federal tax.
 - Includes line and stacked-bar chart views.
 - Includes optional home equity tracking, separate from retirement funding.
@@ -42,6 +43,12 @@ Social Security is included inside that lifestyle amount, so it reduces the amou
 portfolio withdrawal = lifestyle spending - Social Security + estimated federal tax
 ```
 
+Planned extras are added separately:
+
+```txt
+portfolio withdrawal = lifestyle spending + planned extras - Social Security + estimated federal tax
+```
+
 ### Withdraw Fixed Amount From Portfolio
 
 The entered amount is the gross portfolio withdrawal.
@@ -50,6 +57,12 @@ Social Security is added on top after benefits start, and estimated federal tax 
 
 ```txt
 after-tax income = portfolio withdrawal + Social Security - estimated federal tax
+```
+
+Planned extras reduce the after-tax surplus in this mode:
+
+```txt
+after-tax surplus = portfolio withdrawal + Social Security - estimated federal tax - planned extras
 ```
 
 ### Solve Max Lifestyle Amount
@@ -63,6 +76,35 @@ This behaves like Maintain Lifestyle Amount.
 The app solves for the highest starting gross monthly portfolio withdrawal that reaches the selected ending portfolio target.
 
 This behaves like Withdraw Fixed Amount From Portfolio.
+
+## Planned Extras
+
+Planned extras are separate from the base monthly lifestyle amount.
+
+Each planned extra has:
+
+- name
+- category
+- amount
+- start year
+- end year
+- frequency in years
+- inflation toggle
+- enabled toggle
+
+Examples:
+
+- travel every year
+- car replacement every 10 years
+- renovation every 2 or 3 years
+
+For v1:
+
+- expenses land in January of each scheduled year
+- enabled expenses are included in solver calculations
+- inflation-adjusted extras grow from the current year when enabled
+- extras are funded from the same pooled portfolio model
+- no loans, home-equity draws, reimbursements, or separate savings buckets are modeled
 
 ## Social Security Assumptions
 
@@ -170,4 +212,3 @@ Main model files:
 - `src/model/solvers.ts`
 - `src/model/taxes.ts`
 - `src/model/types.ts`
-

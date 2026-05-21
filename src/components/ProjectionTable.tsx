@@ -23,7 +23,7 @@ export function ProjectionTable({ scenario, rows }: ProjectionTableProps) {
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1050px] border-collapse text-sm">
+        <table className="w-full min-w-[1200px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
               <th className="py-3 pr-4">Year</th>
@@ -31,6 +31,8 @@ export function ProjectionTable({ scenario, rows }: ProjectionTableProps) {
               <th className="py-3 pr-4">P2 Age</th>
               <th className="py-3 pr-4 text-right">Start Portfolio</th>
               <th className="py-3 pr-4 text-right">Growth</th>
+              <th className="py-3 pr-4 text-right">Planned Extras</th>
+              <th className="py-3 pr-4 text-right">Total Spending Need</th>
               <th className="py-3 pr-4 text-right">Withdrawal</th>
               <th className="py-3 pr-4 text-right">Federal Tax</th>
               <th className="py-3 pr-4 text-right">Social Security</th>
@@ -49,6 +51,8 @@ export function ProjectionTable({ scenario, rows }: ProjectionTableProps) {
                 <td className="py-3 pr-4">{row.person2Age.toFixed(0)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.startingPortfolioBalance)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.investmentGrowth)}</td>
+                <td className="py-3 pr-4 text-right">{money.format(row.plannedExtrasExpense)}</td>
+                <td className="py-3 pr-4 text-right">{money.format(row.totalSpendingNeed)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.portfolioWithdrawal)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.federalTaxEstimate)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.socialSecurityIncome)}</td>
