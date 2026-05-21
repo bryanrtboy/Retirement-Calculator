@@ -9,10 +9,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { MonthlyProjectionRow } from "../model/types";
+import type { DollarDisplayMode } from "../model/display";
+import { displayDollarValue, dollarDisplayLabels } from "../model/display";
+import type { MonthlyProjectionRow, RetirementScenario } from "../model/types";
 
 interface HomeChartProps {
+  scenario: RetirementScenario;
   rows: MonthlyProjectionRow[];
+  displayMode: DollarDisplayMode;
 }
 
 const compactMoney = new Intl.NumberFormat("en-US", {
@@ -28,22 +32,32 @@ const money = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export function HomeChart({ rows }: HomeChartProps) {
+export function HomeChart({ scenario, rows, displayMode }: HomeChartProps) {
   const chartRows = rows
     .filter((row) => row.monthIndex % 3 === 0 || row.monthIndex === rows.length - 1)
-    .map((row) => ({
-      label: `${row.year}.${String(row.monthInYear).padStart(2, "0")}`,
-      homeValue: row.homeValue ?? 0,
-      mortgageBalance: row.mortgageBalance ?? 0,
-      homeEquity: row.homeEquity ?? 0,
-    }));
+    .map((row) => {
+      const show = (value: number) =>
+        displayDollarValue({
+          value,
+          scenario,
+          monthIndex: row.monthIndex,
+          displayMode,
+        });
+      return {
+        label: `${row.year}.${String(row.monthInYear).padStart(2, "0")}`,
+        homeValue: show(row.homeValue ?? 0),
+        mortgageBalance: show(row.mortgageBalance ?? 0),
+        homeEquity: show(row.homeEquity ?? 0),
+      };
+    });
 
   return (
     <section className="rounded-lg border border-border bg-card p-4 shadow-soft">
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Home Equity Tracker</h2>
         <p className="text-sm text-muted-foreground">
-          Home values are tracked separately and do not fund portfolio withdrawals.
+          {dollarDisplayLabels[displayMode]}. Home values are tracked separately and do not fund
+          portfolio withdrawals.
         </p>
       </div>
       <div className="h-[300px] min-w-0">

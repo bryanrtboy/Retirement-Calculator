@@ -14,12 +14,15 @@ import {
 } from "recharts";
 import { BarChart3, LineChart } from "lucide-react";
 import { useState } from "react";
+import type { DollarDisplayMode } from "../model/display";
+import { displayDollarValue, dollarDisplayLabels } from "../model/display";
 import type { MonthlyProjectionRow, RetirementScenario } from "../model/types";
 import { cn } from "../lib/utils";
 
 interface MainChartProps {
   scenario: RetirementScenario;
   rows: MonthlyProjectionRow[];
+  displayMode: DollarDisplayMode;
 }
 
 const compactMoney = new Intl.NumberFormat("en-US", {
@@ -35,25 +38,34 @@ const money = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export function MainChart({ scenario, rows }: MainChartProps) {
+export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
   const [chartType, setChartType] = useState<"line" | "bar">("line");
   const isLifestyleMode =
     scenario.spendingMode.mode === "maintain_lifestyle" ||
     scenario.spendingMode.mode === "solve_max_lifestyle";
   const chartRows = rows
     .filter((row) => row.monthIndex % 3 === 0 || row.monthIndex === rows.length - 1)
-    .map((row) => ({
-      label: `${row.year}.${String(row.monthInYear).padStart(2, "0")}`,
-      portfolio: row.endingPortfolioBalance,
-      socialSecurity: row.socialSecurityIncome,
-      withdrawal: Math.max(0, row.portfolioWithdrawalActual - row.federalTaxPayment),
-      federalTax: row.federalTaxPayment,
-      plannedExtras: row.plannedExtrasExpense,
-      shortfall: row.shortfall,
-      incomeOrSpending: isLifestyleMode
-        ? row.targetLifestyleSpending
-        : row.afterTaxMonthlyIncomeAvailable,
-    }));
+    .map((row) => {
+      const show = (value: number) =>
+        displayDollarValue({
+          value,
+          scenario,
+          monthIndex: row.monthIndex,
+          displayMode,
+        });
+      return {
+        label: `${row.year}.${String(row.monthInYear).padStart(2, "0")}`,
+        portfolio: show(row.endingPortfolioBalance),
+        socialSecurity: show(row.socialSecurityIncome),
+        withdrawal: show(Math.max(0, row.portfolioWithdrawalActual - row.federalTaxPayment)),
+        federalTax: show(row.federalTaxPayment),
+        plannedExtras: show(row.plannedExtrasExpense),
+        shortfall: show(row.shortfall),
+        incomeOrSpending: show(
+          isLifestyleMode ? row.targetLifestyleSpending : row.afterTaxMonthlyIncomeAvailable,
+        ),
+      };
+    });
 
   return (
     <section className="rounded-lg border border-border bg-card p-4 shadow-soft">
@@ -61,6 +73,7 @@ export function MainChart({ scenario, rows }: MainChartProps) {
         <div>
           <h2 className="text-lg font-semibold">Runway Chart</h2>
           <p className="text-sm text-muted-foreground">
+            {dollarDisplayLabels[displayMode]}.{" "}
             {chartType === "line"
               ? isLifestyleMode
                 ? "The orange line is after-tax lifestyle spending. The teal tax line is the estimated monthly federal tax funded from the portfolio."

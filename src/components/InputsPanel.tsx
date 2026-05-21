@@ -20,6 +20,7 @@ import type {
 } from "../model/types";
 import { cn } from "../lib/utils";
 import { adjustedSocialSecurityBenefit } from "../model/simulation";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface InputsPanelProps {
   scenario: RetirementScenario;
@@ -27,26 +28,47 @@ interface InputsPanelProps {
   onReset: () => void;
 }
 
-const modes: Array<{ id: SpendingMode; title: string; description: string }> = [
+const modeGroups: Array<{
+  title: string;
+  description: string;
+  tooltip: string;
+  options: Array<{ id: SpendingMode; title: string; description: string }>;
+}> = [
   {
-    id: "maintain_lifestyle",
-    title: "Maintain lifestyle amount",
-    description: "Social Security reduces portfolio withdrawals.",
+    title: "Lifestyle Spending",
+    description: "Best for asking how much the household can spend.",
+    tooltip:
+      "This treats Social Security as part of the lifestyle budget. When benefits start, the portfolio usually withdraws less, so the household spending target stays steadier.",
+    options: [
+      {
+        id: "solve_max_lifestyle",
+        title: "Solve max lifestyle amount",
+        description: "Recommended. Finds sustainable monthly spending.",
+      },
+      {
+        id: "maintain_lifestyle",
+        title: "Maintain lifestyle amount",
+        description: "Test a specific budget. Social Security reduces withdrawals.",
+      },
+    ],
   },
   {
-    id: "fixed_portfolio_withdrawal",
-    title: "Withdraw from portfolio",
-    description: "Social Security is extra income.",
-  },
-  {
-    id: "solve_max_lifestyle",
-    title: "Solve max lifestyle amount",
-    description: "Finds the highest total lifestyle amount.",
-  },
-  {
-    id: "solve_max_portfolio_withdrawal",
-    title: "Solve max portfolio withdrawal",
-    description: "Finds the highest investment withdrawal. SS is extra.",
+    title: "Portfolio Withdrawals",
+    description: "Advanced view for recurring investment draws.",
+    tooltip:
+      "This keeps the recurring portfolio draw going after Social Security starts. Benefits stack on top as extra income, so the solver often needs a lower base withdrawal to protect the portfolio.",
+    options: [
+      {
+        id: "fixed_portfolio_withdrawal",
+        title: "Withdraw base amount",
+        description: "Social Security is extra income; extras draw separately.",
+      },
+      {
+        id: "solve_max_portfolio_withdrawal",
+        title: "Solve max base withdrawal",
+        description: "Finds recurring gross portfolio draw; SS is extra.",
+      },
+    ],
   },
 ];
 
@@ -113,7 +135,7 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
               label={
                 scenario.spendingMode.mode === "solve_max_portfolio_withdrawal"
                   ? "Solver starting guess"
-                  : "Starting monthly portfolio withdrawal"
+                  : "Starting base monthly portfolio withdrawal"
               }
               value={scenario.spendingMode.startingMonthlyPortfolioWithdrawal}
               disabled={scenario.spendingMode.mode === "solve_max_portfolio_withdrawal"}
@@ -275,27 +297,41 @@ function SpendingModeSection({
       <div className="mb-3">
         <h3 className="text-sm font-semibold text-primary">Spending Mode</h3>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Choose how Social Security interacts with your monthly amount.
+          Choose whether you want to plan around household spending or portfolio withdrawals.
         </p>
       </div>
-      <div className="grid gap-2">
-        {modes.map((option) => (
-          <button
-            type="button"
-            key={option.id}
-            className={cn(
-              "rounded-md border p-3 text-left transition",
-              mode === option.id
-                ? "border-primary bg-white shadow-sm"
-                : "border-primary/15 bg-white/60 hover:border-primary/60 hover:bg-white",
-            )}
-            onClick={() => onChange(option.id)}
-          >
-            <span className="block text-sm font-semibold">{option.title}</span>
-            <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-              {option.description}
-            </span>
-          </button>
+      <div className="grid gap-3">
+        {modeGroups.map((group) => (
+          <div key={group.title} className="rounded-md border border-primary/15 bg-white/50 p-2">
+            <div className="mb-2 px-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.08em] text-primary">
+                <InfoTooltip label={group.title}>{group.tooltip}</InfoTooltip>
+              </p>
+              <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+                {group.description}
+              </p>
+            </div>
+            <div className="grid gap-2">
+              {group.options.map((option) => (
+                <button
+                  type="button"
+                  key={option.id}
+                  className={cn(
+                    "rounded-md border p-3 text-left transition",
+                    mode === option.id
+                      ? "border-primary bg-white shadow-sm"
+                      : "border-border bg-white/70 hover:border-primary/60 hover:bg-white",
+                  )}
+                  onClick={() => onChange(option.id)}
+                >
+                  <span className="block text-sm font-semibold">{option.title}</span>
+                  <span className="mt-1 block text-xs leading-5 text-muted-foreground">
+                    {option.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     </section>

@@ -1,8 +1,11 @@
-import type { RetirementScenario, YearlyProjectionRow } from "../model/types";
+import type { DollarDisplayMode } from "../model/display";
+import { displayDollarValue, dollarDisplayLabels } from "../model/display";
+import type { MonthlyProjectionRow, RetirementScenario } from "../model/types";
 
 interface ProjectionTableProps {
   scenario: RetirementScenario;
-  rows: YearlyProjectionRow[];
+  rows: MonthlyProjectionRow[];
+  displayMode: DollarDisplayMode;
 }
 
 const money = new Intl.NumberFormat("en-US", {
@@ -11,14 +14,17 @@ const money = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export function ProjectionTable({ scenario, rows }: ProjectionTableProps) {
+export function ProjectionTable({ scenario, rows, displayMode }: ProjectionTableProps) {
+  const displayRows = aggregateDisplayRows({ scenario, rows, displayMode });
+
   return (
     <section className="rounded-lg border border-border bg-card p-4 shadow-soft">
       <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Yearly Projection Table</h2>
           <p className="text-sm text-muted-foreground">
-            Annual rows are summed directly from the monthly ledger that drives the chart.
+            {dollarDisplayLabels[displayMode]}. Annual rows are summed directly from the monthly
+            ledger that drives the chart.
           </p>
         </div>
       </div>
@@ -44,7 +50,7 @@ export function ProjectionTable({ scenario, rows }: ProjectionTableProps) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {displayRows.map((row) => (
               <tr key={row.year} className="border-b border-border/70 last:border-b-0">
                 <td className="py-3 pr-4 font-medium">{row.year}</td>
                 <td className="py-3 pr-4">{row.person1Age.toFixed(0)}</td>
@@ -74,4 +80,51 @@ export function ProjectionTable({ scenario, rows }: ProjectionTableProps) {
       </div>
     </section>
   );
+}
+
+function aggregateDisplayRows({
+  scenario,
+  rows,
+  displayMode,
+}: {
+  scenario: RetirementScenario;
+  rows: MonthlyProjectionRow[];
+  displayMode: DollarDisplayMode;
+}) {
+  const byYear = new Map<number, MonthlyProjectionRow[]>();
+  rows.forEach((row) => {
+    byYear.set(row.year, [...(byYear.get(row.year) ?? []), row]);
+  });
+
+  return [...byYear.entries()].map(([year, yearRows]) => {
+    const first = yearRows[0];
+    const last = yearRows[yearRows.length - 1];
+    const show = (row: MonthlyProjectionRow, value: number) =>
+      displayDollarValue({
+        value,
+        scenario,
+        monthIndex: row.monthIndex,
+        displayMode,
+      });
+    const sum = (select: (row: MonthlyProjectionRow) => number) =>
+      yearRows.reduce((total, row) => total + show(row, select(row)), 0);
+
+    return {
+      year,
+      person1Age: first.person1Age,
+      person2Age: first.person2Age,
+      startingPortfolioBalance: show(first, first.startingPortfolioBalance),
+      investmentGrowth: sum((row) => row.investmentGrowth),
+      plannedExtrasExpense: sum((row) => row.plannedExtrasExpense),
+      totalSpendingNeed: sum((row) => row.totalSpendingNeed),
+      portfolioWithdrawal: sum((row) => row.portfolioWithdrawalActual),
+      federalTaxEstimate: sum((row) => row.federalTaxPayment),
+      socialSecurityIncome: sum((row) => row.socialSecurityIncome),
+      totalIncomeOrSpending: sum((row) => row.totalMonthlyIncomeAvailable),
+      afterTaxIncomeOrSpending: sum((row) => row.afterTaxMonthlyIncomeAvailable),
+      shortfall: sum((row) => row.shortfall),
+      endingPortfolioBalance: show(last, last.endingPortfolioBalance),
+      homeEquity: last.homeEquity === undefined ? undefined : show(last, last.homeEquity),
+    };
+  });
 }

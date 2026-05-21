@@ -6,6 +6,9 @@ import { InputsPanel } from "./components/InputsPanel";
 import { MainChart } from "./components/MainChart";
 import { ProjectionTable } from "./components/ProjectionTable";
 import { ResultsCards } from "./components/ResultsCards";
+import { cn } from "./lib/utils";
+import type { DollarDisplayMode } from "./model/display";
+import { dollarDisplayLabels } from "./model/display";
 import { solveScenario } from "./model/solvers";
 import type { RetirementScenario } from "./model/types";
 import { scenarioSchema } from "./model/validation";
@@ -87,6 +90,7 @@ const defaultScenario: RetirementScenario = {
 
 export function App() {
   const [scenario, setScenario] = useState<RetirementScenario>(() => loadStoredScenario());
+  const [displayMode, setDisplayMode] = useState<DollarDisplayMode>("today");
   const result = useMemo(() => solveScenario(scenario), [scenario]);
 
   useEffect(() => {
@@ -118,25 +122,69 @@ export function App() {
         />
 
         <div className="flex min-w-0 flex-col gap-5">
-          <ResultsCards scenario={scenario} result={result} />
+          <DisplayModeControl displayMode={displayMode} onChange={setDisplayMode} />
+          <ResultsCards scenario={scenario} result={result} displayMode={displayMode} />
           <AnimatePresence mode="wait">
             <motion.div
-              key={scenario.spendingMode.mode}
+              key={`${scenario.spendingMode.mode}-${displayMode}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
             >
-              <MainChart scenario={scenario} rows={result.monthlyRows} />
+              <MainChart scenario={scenario} rows={result.monthlyRows} displayMode={displayMode} />
             </motion.div>
           </AnimatePresence>
-          {scenario.home.enabled && <HomeChart rows={result.monthlyRows} />}
+          {scenario.home.enabled && (
+            <HomeChart scenario={scenario} rows={result.monthlyRows} displayMode={displayMode} />
+          )}
           <AssumptionsBox />
         </div>
       </section>
 
-      <ProjectionTable scenario={scenario} rows={result.yearlyRows} />
+      <ProjectionTable
+        scenario={scenario}
+        rows={result.monthlyRows}
+        displayMode={displayMode}
+      />
     </main>
+  );
+}
+
+function DisplayModeControl({
+  displayMode,
+  onChange,
+}: {
+  displayMode: DollarDisplayMode;
+  onChange: (mode: DollarDisplayMode) => void;
+}) {
+  return (
+    <section className="flex flex-col gap-3 rounded-lg border border-primary/25 bg-primary/8 p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="text-sm font-semibold text-primary">Display Values</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Showing {dollarDisplayLabels[displayMode].toLowerCase()}. The simulator still applies
+          inflation, COLA, taxes, and investment returns month by month.
+        </p>
+      </div>
+      <div className="inline-grid shrink-0 grid-cols-2 rounded-md border border-border bg-white p-1 shadow-sm">
+        {(["today", "future"] as const).map((mode) => (
+          <button
+            type="button"
+            key={mode}
+            className={cn(
+              "inline-flex h-9 items-center justify-center rounded px-3 text-sm font-medium transition",
+              displayMode === mode
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-primary",
+            )}
+            onClick={() => onChange(mode)}
+          >
+            {dollarDisplayLabels[mode]}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 

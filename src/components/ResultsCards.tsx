@@ -10,11 +10,15 @@ import {
   WalletCards,
 } from "lucide-react";
 import { useState } from "react";
+import type { DollarDisplayMode } from "../model/display";
+import { displayDollarTotal, displayDollarValue } from "../model/display";
 import type { RetirementScenario, SimulationResult } from "../model/types";
+import { InfoTooltip } from "./InfoTooltip";
 
 interface ResultsCardsProps {
   scenario: RetirementScenario;
   result: SimulationResult;
+  displayMode: DollarDisplayMode;
 }
 
 const money = new Intl.NumberFormat("en-US", {
@@ -23,7 +27,7 @@ const money = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export function ResultsCards({ scenario, result }: ResultsCardsProps) {
+export function ResultsCards({ scenario, result, displayMode }: ResultsCardsProps) {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [taxOpen, setTaxOpen] = useState(false);
   const isLifestyleMode =
@@ -46,45 +50,119 @@ export function ResultsCards({ scenario, result }: ResultsCardsProps) {
   const referenceIncomeRow = firstBothSsRow ?? firstRow;
   const referenceIncomeLabel = isLifestyleMode
     ? firstBothSsRow
-      ? "Lifestyle amount when both SS start"
-      : "Lifestyle amount when SS starts"
+      ? "Lifestyle spending after SS starts"
+      : "Lifestyle spending when SS starts"
     : firstBothSsRow
-      ? "After-tax income when both SS start"
-      : "After-tax income when SS starts";
+      ? "After-tax monthly income when both SS start"
+      : "After-tax monthly income when SS starts";
   const referenceIncomeNote = isLifestyleMode
-    ? `Future nominal dollars; same purchasing power as ${money.format(result.startingMonthlyLifestyleSpending)} today.`
-    : "Future nominal dollars after estimated federal tax.";
+    ? displayMode === "today"
+      ? "Shown in today's purchasing power, so Social Security should not look like a lifestyle raise."
+      : `Future nominal dollars; same purchasing power as ${money.format(result.startingMonthlyLifestyleSpending)} today.`
+    : "Recurring withdrawal plus Social Security after estimated federal tax; planned extras are separate.";
+  const referenceIncomeTooltip = isLifestyleMode
+    ? "In lifestyle modes, Social Security replaces part of the portfolio withdrawal. The household spending target should stay steady in today's dollars; planned extras are tracked separately."
+    : "In portfolio withdrawal modes, the base investment draw continues after Social Security starts. Social Security stacks on top, so spendable income can rise later even though the safe base withdrawal is lower.";
   const startingTax = firstRow.federalTaxPayment;
-  const modeSummary = getModeSummary(scenario, result);
+  const lastRow = result.monthlyRows[result.monthlyRows.length - 1];
+  const displayedReferenceIncome = displayDollarValue({
+    value: isLifestyleMode
+      ? referenceIncomeRow.targetLifestyleSpending
+      : referenceIncomeRow.afterTaxMonthlyIncomeAvailable,
+    scenario,
+    monthIndex: referenceIncomeRow.monthIndex,
+    displayMode,
+  });
+  const displayedFirstWithdrawal = displayDollarValue({
+    value: firstRow.portfolioWithdrawalRequested,
+    scenario,
+    monthIndex: firstRow.monthIndex,
+    displayMode,
+  });
+  const displayedEndingPortfolio = displayDollarValue({
+    value: result.endingPortfolioBalance,
+    scenario,
+    monthIndex: lastRow?.monthIndex ?? 0,
+    displayMode,
+  });
+  const displayedTotalWithdrawals = displayDollarTotal({
+    rows: result.monthlyRows,
+    scenario,
+    displayMode,
+    select: (row) => row.portfolioWithdrawalActual,
+  });
+  const displayedTotalTax = displayDollarTotal({
+    rows: result.monthlyRows,
+    scenario,
+    displayMode,
+    select: (row) => row.federalTaxPayment,
+  });
+  const displayedTotalExtras = displayDollarTotal({
+    rows: result.monthlyRows,
+    scenario,
+    displayMode,
+    select: (row) => row.plannedExtrasExpense,
+  });
+  const displayedTotalSocialSecurity = displayDollarTotal({
+    rows: result.monthlyRows,
+    scenario,
+    displayMode,
+    select: (row) => row.socialSecurityIncome,
+  });
+  const largestPlannedExtraRow = result.yearlyRows.reduce<
+    { year: number; amount: number } | undefined
+  >((largest, row) => {
+    const yearStartMonth = Math.max(0, (row.year - scenario.plan.currentYear) * 12);
+    const amount = displayDollarValue({
+      value: row.plannedExtrasExpense,
+      scenario,
+      monthIndex: yearStartMonth,
+      displayMode,
+    });
+    return amount > 0 && (!largest || amount > largest.amount)
+      ? { year: row.year, amount }
+      : largest;
+  }, undefined);
+  const modeSummary = getModeSummary(scenario, result, displayMode);
 
   const cards = [
     {
-      label: isLifestyleMode ? "Starting after-tax lifestyle spending" : "Starting gross income before SS",
+      label: isLifestyleMode ? "Starting after-tax lifestyle spending" : "Starting base portfolio withdrawal",
       value: money.format(
         isLifestyleMode
           ? result.startingMonthlyLifestyleSpending
-          : firstRow.totalMonthlyIncomeAvailable,
+          : result.startingMonthlyPortfolioWithdrawal,
       ),
+      note: isLifestyleMode
+        ? undefined
+        : "This is the recurring investment draw. Social Security is still counted separately.",
       icon: BadgeDollarSign,
       tone: "primary",
     },
     {
-      label: isLifestyleMode ? "Starting gross portfolio withdrawal needed" : "Starting gross portfolio withdrawal only",
-      value: money.format(firstRow.portfolioWithdrawalRequested),
-      note: startingTax > 0 ? `Includes ${money.format(startingTax)} estimated monthly federal tax.` : undefined,
+      label: isLifestyleMode ? "Starting gross portfolio withdrawal needed" : "First-month gross portfolio draw",
+      value: money.format(displayedFirstWithdrawal),
+      note: isLifestyleMode
+        ? startingTax > 0
+          ? `Includes ${money.format(startingTax)} estimated monthly federal tax.`
+          : undefined
+        : firstRow.plannedExtrasExpense > 0
+          ? `Includes ${money.format(firstRow.plannedExtrasExpense)} planned extras.`
+          : "Planned extras are added in scheduled months.",
       icon: PiggyBank,
       tone: "accent",
     },
     {
       label: referenceIncomeLabel,
-      value: money.format(referenceIncomeRow.afterTaxMonthlyIncomeAvailable),
+      value: money.format(displayedReferenceIncome),
       note: referenceIncomeNote,
+      tooltip: referenceIncomeTooltip,
       icon: WalletCards,
       tone: "primary",
     },
     {
       label: "Ending portfolio",
-      value: money.format(result.endingPortfolioBalance),
+      value: money.format(displayedEndingPortfolio),
       icon: Landmark,
       tone: "primary",
     },
@@ -99,40 +177,40 @@ export function ResultsCards({ scenario, result }: ResultsCardsProps) {
     },
     {
       label: "Total withdrawals",
-      value: money.format(result.totalPortfolioWithdrawals),
+      value: money.format(displayedTotalWithdrawals),
       icon: PiggyBank,
       tone: "accent",
     },
     {
       label: "Estimated federal tax",
-      value: money.format(result.totalFederalTaxEstimate),
+      value: money.format(displayedTotalTax),
       icon: Landmark,
       tone: "accent",
       action: () => setTaxOpen((open) => !open),
       isOpen: taxOpen,
-      detail: <TaxDetail result={result} />,
+      detail: <TaxDetail scenario={scenario} result={result} displayMode={displayMode} />,
     },
     {
       label: "Planned extras total",
-      value: money.format(result.totalPlannedExtras),
+      value: money.format(displayedTotalExtras),
       icon: WalletCards,
       tone: "accent",
       action: () => setExtrasOpen((open) => !open),
       isOpen: extrasOpen,
-      detail: <PlannedExtrasDetail result={result} />,
+      detail: <PlannedExtrasDetail scenario={scenario} result={result} displayMode={displayMode} />,
     },
     {
       label: "Largest planned extra year",
       value:
-        result.largestPlannedExtraYear === undefined
+        largestPlannedExtraRow === undefined
           ? "None"
-          : `${result.largestPlannedExtraYear} · ${money.format(result.largestPlannedExtraAmount ?? 0)}`,
+          : `${largestPlannedExtraRow.year} · ${money.format(largestPlannedExtraRow.amount)}`,
       icon: WalletCards,
       tone: "primary",
     },
     {
       label: "Total Social Security",
-      value: money.format(result.totalSocialSecurityReceived),
+      value: money.format(displayedTotalSocialSecurity),
       icon: Landmark,
       tone: "primary",
     },
@@ -162,7 +240,13 @@ export function ResultsCards({ scenario, result }: ResultsCardsProps) {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm text-muted-foreground">{card.label}</p>
+                <p className="text-sm text-muted-foreground">
+                  {"tooltip" in card && card.tooltip ? (
+                    <InfoTooltip label={card.label}>{card.tooltip}</InfoTooltip>
+                  ) : (
+                    card.label
+                  )}
+                </p>
                 <motion.p
                   key={card.value}
                   initial={{ opacity: 0, y: 5 }}
@@ -203,16 +287,28 @@ export function ResultsCards({ scenario, result }: ResultsCardsProps) {
   );
 }
 
-function PlannedExtrasDetail({ result }: { result: SimulationResult }) {
+function PlannedExtrasDetail({
+  scenario,
+  result,
+  displayMode,
+}: {
+  scenario: RetirementScenario;
+  result: SimulationResult;
+  displayMode: DollarDisplayMode;
+}) {
   const eventsByYear = result.plannedExtraEvents.reduce<
     Array<{ year: number; total: number; events: typeof result.plannedExtraEvents }>
   >((years, event) => {
     const existing = years.find((year) => year.year === event.year);
     if (existing) {
-      existing.total += event.amount;
+      existing.total += displayPlannedExtraEvent(event.amount, event.year, scenario, displayMode);
       existing.events.push(event);
     } else {
-      years.push({ year: event.year, total: event.amount, events: [event] });
+      years.push({
+        year: event.year,
+        total: displayPlannedExtraEvent(event.amount, event.year, scenario, displayMode),
+        events: [event],
+      });
     }
     return years;
   }, []);
@@ -250,7 +346,9 @@ function PlannedExtrasDetail({ result }: { result: SimulationResult }) {
                     <span className="min-w-0 truncate">
                       {event.name} · {categoryLabel(event.category)}
                     </span>
-                    <span className="shrink-0">{money.format(event.amount)}</span>
+                    <span className="shrink-0">
+                      {money.format(displayPlannedExtraEvent(event.amount, event.year, scenario, displayMode))}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -262,7 +360,15 @@ function PlannedExtrasDetail({ result }: { result: SimulationResult }) {
   );
 }
 
-function TaxDetail({ result }: { result: SimulationResult }) {
+function TaxDetail({
+  scenario,
+  result,
+  displayMode,
+}: {
+  scenario: RetirementScenario;
+  result: SimulationResult;
+  displayMode: DollarDisplayMode;
+}) {
   const taxRows = result.yearlyRows.filter((row) => row.federalTaxEstimate > 0);
 
   return (
@@ -290,9 +396,14 @@ function TaxDetail({ result }: { result: SimulationResult }) {
             >
               <span className="font-semibold">{row.year}</span>
               <span className="truncate text-muted-foreground">
-                gross {money.format(row.portfolioWithdrawal + row.socialSecurityIncome)}
+                gross{" "}
+                {money.format(
+                  displayYearlyValue(row.portfolioWithdrawal + row.socialSecurityIncome, row.year, scenario, displayMode),
+                )}
               </span>
-              <span className="font-semibold">{money.format(row.federalTaxEstimate)}</span>
+              <span className="font-semibold">
+                {money.format(displayYearlyValue(row.federalTaxEstimate, row.year, scenario, displayMode))}
+              </span>
             </div>
           ))}
         </div>
@@ -313,31 +424,59 @@ function categoryLabel(category: string) {
   return labels[category] ?? category;
 }
 
-function getModeSummary(scenario: RetirementScenario, result: SimulationResult) {
+function displayPlannedExtraEvent(
+  value: number,
+  year: number,
+  scenario: RetirementScenario,
+  displayMode: DollarDisplayMode,
+) {
+  return displayYearlyValue(value, year, scenario, displayMode);
+}
+
+function displayYearlyValue(
+  value: number,
+  year: number,
+  scenario: RetirementScenario,
+  displayMode: DollarDisplayMode,
+) {
+  return displayDollarValue({
+    value,
+    scenario,
+    monthIndex: Math.max(0, (year - scenario.plan.currentYear) * 12),
+    displayMode,
+  });
+}
+
+function getModeSummary(
+  scenario: RetirementScenario,
+  result: SimulationResult,
+  displayMode: DollarDisplayMode,
+) {
+  const suffix = displayMode === "today" ? " in today's dollars" : " in future dollars";
   switch (scenario.spendingMode.mode) {
     case "maintain_lifestyle":
       return {
         title: "Maintain lifestyle amount",
-        description: `${money.format(result.startingMonthlyLifestyleSpending)} is after-tax household spending before planned extras. Social Security is included inside that amount, while planned extras and estimated federal tax are funded from the portfolio.`,
+        description: `${money.format(result.startingMonthlyLifestyleSpending)} is after-tax household spending${suffix} before planned extras. Social Security is included inside that amount, while planned extras and estimated federal tax are funded from the portfolio.`,
         formula: "Portfolio withdrawal = lifestyle spending + planned extras - Social Security + estimated federal tax",
       };
     case "fixed_portfolio_withdrawal":
       return {
-        title: "Withdraw fixed amount from portfolio",
-        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the gross portfolio withdrawal. Social Security is added on top after benefits start; planned extras and estimated federal tax reduce after-tax surplus.`,
-        formula: "After-tax surplus = portfolio withdrawal + Social Security - estimated federal tax - planned extras",
+        title: "Withdraw base amount from portfolio",
+        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the recurring gross portfolio withdrawal${suffix}. Social Security is added on top after benefits start, and planned extras are separate portfolio draws in scheduled months.`,
+        formula: "Portfolio draw = base monthly withdrawal + scheduled planned extras",
       };
     case "solve_max_lifestyle":
       return {
         title: "Solved maximum lifestyle amount",
-        description: `${money.format(result.startingMonthlyLifestyleSpending)} is the highest starting after-tax household spending before planned extras that meets the ending portfolio target.`,
+        description: `${money.format(result.startingMonthlyLifestyleSpending)} is the highest starting after-tax household spending${suffix} before planned extras that meets the ending portfolio target.`,
         formula: "Portfolio withdrawal = solved lifestyle spending + planned extras - Social Security + estimated federal tax",
       };
     case "solve_max_portfolio_withdrawal":
       return {
-        title: "Solved maximum portfolio withdrawal",
-        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the highest starting gross withdrawal from investments only. Social Security is extra income on top; planned extras and estimated federal tax reduce after-tax surplus.`,
-        formula: "After-tax surplus = solved withdrawal + Social Security - estimated federal tax - planned extras",
+        title: "Solved maximum base portfolio withdrawal",
+        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the highest starting recurring gross withdrawal${suffix} from investments. Social Security is still included as extra income, so compare this mode to the after-tax income card, not directly to lifestyle spending.`,
+        formula: "Portfolio draw = solved base withdrawal + scheduled planned extras",
       };
   }
 }

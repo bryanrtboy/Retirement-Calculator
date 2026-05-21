@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { displayDollarValue } from "./display";
 import { simulateRetirement } from "./simulation";
 import { solveScenario } from "./solvers";
 import type { RetirementScenario } from "./types";
@@ -64,6 +65,33 @@ describe("retirement simulator spending modes", () => {
     expect(result.totalSocialSecurityReceived).toBe(24_000);
     expect(result.totalPortfolioWithdrawals).toBe(216_000);
     expect(result.endingPortfolioBalance).toBe(284_000);
+  });
+
+  it("treats planned extras as separate portfolio draws in fixed withdrawal mode", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      spendingMode: {
+        ...baseScenario.spendingMode,
+        mode: "fixed_portfolio_withdrawal",
+      },
+      plannedExpenses: [
+        {
+          id: "car",
+          name: "Car",
+          category: "vehicle",
+          amount: 20_000,
+          startYear: 2026,
+          endYear: 2026,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(result.totalPlannedExtras).toBe(20_000);
+    expect(result.totalPortfolioWithdrawals).toBe(236_000);
+    expect(result.totalShortfall).toBe(0);
   });
 
   it("adjusts Social Security benefits for claiming age", () => {
@@ -157,6 +185,35 @@ describe("retirement simulator spending modes", () => {
     );
   });
 
+  it("lowers solved base portfolio withdrawal when planned extras are enabled", () => {
+    const baseline = solveScenario({
+      ...baseScenario,
+      spendingMode: { ...baseScenario.spendingMode, mode: "solve_max_portfolio_withdrawal" },
+    });
+    const withExtras = solveScenario({
+      ...baseScenario,
+      spendingMode: { ...baseScenario.spendingMode, mode: "solve_max_portfolio_withdrawal" },
+      plannedExpenses: [
+        {
+          id: "travel",
+          name: "Travel",
+          category: "travel",
+          amount: 12_000,
+          startYear: 2026,
+          endYear: 2027,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(withExtras.startingMonthlyPortfolioWithdrawal).toBeGreaterThan(0);
+    expect(withExtras.startingMonthlyPortfolioWithdrawal).toBeLessThan(
+      baseline.startingMonthlyPortfolioWithdrawal,
+    );
+  });
+
   it("ignores disabled planned expenses", () => {
     const baseline = simulateRetirement(baseScenario);
     const withDisabledExpense = simulateRetirement({
@@ -209,6 +266,49 @@ describe("retirement simulator spending modes", () => {
     expect(result.yearlyRows.find((row) => row.year === 2027)?.plannedExtrasExpense).toBeCloseTo(
       13_440,
       0,
+    );
+  });
+
+  it("keeps lifestyle spending flat in today's dollars when Social Security starts with an extra", () => {
+    const scenario: RetirementScenario = {
+      ...baseScenario,
+      people: { person1: { currentAge: 62 }, person2: { currentAge: 62 } },
+      plan: { ...baseScenario.plan, planningEndAge: 70 },
+      portfolio: { ...baseScenario.portfolio, annualInflation: 0.03 },
+      socialSecurity: {
+        ...baseScenario.socialSecurity,
+        person1ClaimingAge: 67,
+        annualCOLA: 0.03,
+      },
+      plannedExpenses: [
+        {
+          id: "travel",
+          name: "Travel",
+          category: "travel",
+          amount: 8_000,
+          startYear: 2031,
+          endYear: 2031,
+          frequencyYears: 1,
+          inflateWithInflation: true,
+          enabled: true,
+        },
+      ],
+    };
+    const result = simulateRetirement(scenario);
+    const socialSecurityStartRow = result.monthlyRows.find((row) => row.socialSecurityIncome > 0);
+
+    expect(socialSecurityStartRow).toBeDefined();
+    expect(socialSecurityStartRow?.plannedExtrasExpense).toBeGreaterThan(0);
+    expect(
+      displayDollarValue({
+        value: socialSecurityStartRow?.targetLifestyleSpending ?? 0,
+        scenario,
+        monthIndex: socialSecurityStartRow?.monthIndex ?? 0,
+        displayMode: "today",
+      }),
+    ).toBeCloseTo(scenario.spendingMode.startingMonthlyLifestyleSpending, 0);
+    expect(socialSecurityStartRow?.afterTaxMonthlyIncomeAvailable).toBeGreaterThan(
+      socialSecurityStartRow?.targetLifestyleSpending ?? 0,
     );
   });
 });

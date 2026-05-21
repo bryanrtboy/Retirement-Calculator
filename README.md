@@ -50,6 +50,7 @@ NODE_VERSION=22
 - Supports optional taxable savings, pooled with the retirement portfolio.
 - Supports planned extras such as travel, vehicles, renovations, and other major expenses.
 - Tracks optional home value, mortgage balance, and home equity separately.
+- Shows results in today's dollars by default, with an option to view future dollars.
 - Saves settings locally in the browser.
 
 ## Spending Modes
@@ -96,6 +97,8 @@ In this version, planned extras occur in January of scheduled years. They are in
 
 - Investment return is nominal.
 - Portfolio growth is applied monthly before withdrawals.
+- The simulator calculates in nominal dollars, then converts the display to today's dollars unless
+  future dollars are selected.
 - Taxable savings are pooled with the retirement portfolio when enabled.
 - Portfolio withdrawals are treated as ordinary taxable income.
 - Federal tax is estimated using 2026 married-filing-jointly rules.

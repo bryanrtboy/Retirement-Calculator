@@ -138,33 +138,26 @@ export function simulateRetirement(scenario: RetirementScenario): SimulationResu
       scenario.spendingMode.mode === "maintain_lifestyle" ||
       scenario.spendingMode.mode === "solve_max_lifestyle";
 
-    const lifestylePortfolioWithdrawalRequested = isLifestyleMode
+    const basePortfolioWithdrawalRequested = isLifestyleMode
       ? Math.max(0, totalSpendingNeed - socialSecurityIncome)
       : inflatedPortfolioWithdrawal;
     const federalTaxPayment = yearlyTaxEstimates.get(year)?.monthlyTax ?? 0;
     const portfolioWithdrawalRequested =
-      lifestylePortfolioWithdrawalRequested + (isLifestyleMode ? federalTaxPayment : 0);
+      basePortfolioWithdrawalRequested +
+      (isLifestyleMode ? federalTaxPayment : plannedExtrasExpense);
 
     const portfolioWithdrawalActual = Math.min(balanceAfterGrowth, portfolioWithdrawalRequested);
     const taxPaymentActual = Math.min(
       federalTaxPayment,
       isLifestyleMode
-        ? Math.max(0, portfolioWithdrawalActual - lifestylePortfolioWithdrawalRequested)
+        ? Math.max(0, portfolioWithdrawalActual - basePortfolioWithdrawalRequested)
         : portfolioWithdrawalActual + socialSecurityIncome,
     );
     const portfolioWithdrawalForSpending = Math.max(
       0,
       portfolioWithdrawalActual - taxPaymentActual,
     );
-    const withdrawalShortfall = Math.max(0, portfolioWithdrawalRequested - portfolioWithdrawalActual);
-    const fixedModeExtraShortfall = isLifestyleMode
-      ? 0
-      : Math.max(
-          0,
-          plannedExtrasExpense -
-            Math.max(0, portfolioWithdrawalActual + socialSecurityIncome - taxPaymentActual),
-        );
-    const shortfall = withdrawalShortfall + fixedModeExtraShortfall;
+    const shortfall = Math.max(0, portfolioWithdrawalRequested - portfolioWithdrawalActual);
     const endingPortfolioBalance = Math.max(0, balanceAfterGrowth - portfolioWithdrawalActual);
 
     if (depletionMonth === undefined && portfolioWithdrawalRequested > 0 && endingPortfolioBalance <= 0) {
@@ -323,7 +316,7 @@ function calculateYearlyTaxEstimates({
     const totalSpendingNeed = targetLifestyleSpending + plannedExtrasExpense;
     const ordinaryIncomeBeforeTax = isLifestyleMode
       ? Math.max(0, totalSpendingNeed - socialSecurityIncome)
-      : inflatedPortfolioWithdrawal;
+      : inflatedPortfolioWithdrawal + plannedExtrasExpense;
     const existing = byYear.get(year) ?? {
       months: 0,
       ordinaryIncomeBeforeTax: 0,
