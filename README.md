@@ -133,3 +133,7 @@ Main model files:
 - `src/model/solvers.ts`
 - `src/model/taxes.ts`
 - `src/model/types.ts`
+
+## License
+
+MIT
