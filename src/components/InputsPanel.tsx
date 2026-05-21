@@ -567,7 +567,30 @@ function NumberField({
 }
 
 function CurrencyField(props: Parameters<typeof NumberField>[0]) {
-  return <NumberField {...props} />;
+  const { label, value, onChange, disabled } = props;
+  return (
+    <label className="grid gap-1 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <input
+        className="h-10 w-full min-w-0 rounded-md border border-input bg-white px-3 text-right tabular-nums shadow-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:bg-muted"
+        type="text"
+        inputMode="numeric"
+        value={formatCurrencyInput(value)}
+        disabled={disabled}
+        onChange={(event) => onChange(parseCurrencyInput(event.target.value))}
+      />
+    </label>
+  );
+}
+
+function formatCurrencyInput(value: number) {
+  if (!Number.isFinite(value)) return "0";
+  return Math.round(value).toLocaleString("en-US");
+}
+
+function parseCurrencyInput(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits ? Number(digits) : 0;
 }
 
 function TextField({
