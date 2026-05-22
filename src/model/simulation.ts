@@ -404,19 +404,23 @@ function plannedExtrasForMonth({
   monthInYear: number;
   monthlyInflation: number;
 }): PlannedExtraEvent[] {
-  if (monthInYear !== 1) return [];
-
   return (scenario.plannedExpenses ?? [])
     .filter((expense) => {
       if (!expense.enabled) return false;
       if (year < expense.startYear || year > expense.endYear) return false;
       return (year - expense.startYear) % expense.frequencyYears === 0;
     })
-    .map((expense) => {
-      const monthsSinceCurrentYear = Math.max(0, (year - scenario.plan.currentYear) * 12);
+    .flatMap((expense) => {
+      const scheduledAmount = scheduledPlannedExpenseAmount(expense, monthInYear);
+      if (scheduledAmount <= 0) return [];
+
+      const monthsSinceCurrentYear = Math.max(
+        0,
+        (year - scenario.plan.currentYear) * 12 + monthInYear - 1,
+      );
       const inflatedAmount = expense.inflateWithInflation
-        ? expense.amount * Math.pow(1 + monthlyInflation, monthsSinceCurrentYear)
-        : expense.amount;
+        ? scheduledAmount * Math.pow(1 + monthlyInflation, monthsSinceCurrentYear)
+        : scheduledAmount;
       return {
         year,
         monthInYear,
@@ -425,4 +429,19 @@ function plannedExtrasForMonth({
         amount: inflatedAmount,
       };
     });
+}
+
+function scheduledPlannedExpenseAmount(
+  expense: RetirementScenario["plannedExpenses"][number],
+  monthInYear: number,
+) {
+  if (expense.category === "travel") {
+    return monthInYear === 6 || monthInYear === 9 ? expense.amount / 2 : 0;
+  }
+
+  if (expense.category === "home") {
+    return expense.amount / 12;
+  }
+
+  return monthInYear === 1 ? expense.amount : 0;
 }

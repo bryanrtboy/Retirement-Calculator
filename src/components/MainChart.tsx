@@ -43,8 +43,7 @@ export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
   const isLifestyleMode =
     scenario.spendingMode.mode === "maintain_lifestyle" ||
     scenario.spendingMode.mode === "solve_max_lifestyle";
-  const chartRows = rows
-    .filter((row) => row.monthIndex % 3 === 0 || row.monthIndex === rows.length - 1)
+  const chartRows = filterChartRows(rows)
     .map((row) => {
       const show = (value: number) =>
         displayDollarValue({
@@ -293,6 +292,16 @@ export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
         </ResponsiveContainer>
       </div>
     </section>
+  );
+}
+
+export function filterChartRows(rows: MonthlyProjectionRow[]) {
+  return rows.filter(
+    (row) =>
+      row.monthIndex % 3 === 0 ||
+      row.plannedExtrasExpense > 0 ||
+      row.shortfall > 0 ||
+      row.monthIndex === rows.length - 1,
   );
 }
 

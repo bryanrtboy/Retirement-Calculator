@@ -91,7 +91,9 @@ Examples:
 - vehicle replacement every 10 years
 - renovation or home project every 2 or 3 years
 
-In this version, planned extras occur in January of scheduled years. They are included in solver calculations.
+Planned extras are included in solver calculations. Travel is split between June and September,
+home projects are spread evenly across the year, and other categories occur in January of scheduled
+years.
 
 ## Key Assumptions
 

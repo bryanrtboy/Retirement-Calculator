@@ -507,7 +507,7 @@ function PlannedExtrasSection({
                 <p className="text-xs leading-5 text-muted-foreground">
                   {money.format(expense.amount)} every {expense.frequencyYears} year
                   {expense.frequencyYears === 1 ? "" : "s"} from {expense.startYear} to{" "}
-                  {expense.endYear}, paid in January.
+                  {expense.endYear}, {plannedExpenseTimingText(expense.category)}.
                 </p>
               </article>
             ))
@@ -516,6 +516,12 @@ function PlannedExtrasSection({
       )}
     </section>
   );
+}
+
+function plannedExpenseTimingText(category: PlannedExpenseCategory) {
+  if (category === "travel") return "split between June and September";
+  if (category === "home") return "spread evenly across the year";
+  return "paid in January";
 }
 
 function isExpenseScheduled(expense: PlannedExpenseInput, year: number) {

@@ -157,6 +157,63 @@ describe("retirement simulator spending modes", () => {
     expect(extrasByYear.get(2031)).toBe(0);
   });
 
+  it("splits travel expenses between June and September", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      plannedExpenses: [
+        {
+          id: "travel",
+          name: "Travel",
+          category: "travel",
+          amount: 12_000,
+          startYear: 2026,
+          endYear: 2026,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+
+    expect(
+      result.monthlyRows.find((row) => row.year === 2026 && row.monthInYear === 1)
+        ?.plannedExtrasExpense,
+    ).toBe(0);
+    expect(
+      result.monthlyRows.find((row) => row.year === 2026 && row.monthInYear === 6)
+        ?.plannedExtrasExpense,
+    ).toBe(6_000);
+    expect(
+      result.monthlyRows.find((row) => row.year === 2026 && row.monthInYear === 9)
+        ?.plannedExtrasExpense,
+    ).toBe(6_000);
+  });
+
+  it("spreads home project expenses evenly across scheduled years", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      plannedExpenses: [
+        {
+          id: "home",
+          name: "Home project",
+          category: "home",
+          amount: 12_000,
+          startYear: 2026,
+          endYear: 2026,
+          frequencyYears: 1,
+          inflateWithInflation: false,
+          enabled: true,
+        },
+      ],
+    });
+    const firstYearRows = result.monthlyRows.filter((row) => row.year === 2026);
+
+    expect(firstYearRows).toHaveLength(12);
+    firstYearRows.forEach((row) => {
+      expect(row.plannedExtrasExpense).toBe(1_000);
+    });
+  });
+
   it("lowers solved lifestyle spending when planned extras are enabled", () => {
     const baseline = solveScenario({
       ...baseScenario,
@@ -259,12 +316,20 @@ describe("retirement simulator spending modes", () => {
       ],
     });
 
+    const monthlyInflation = Math.pow(1.12, 1 / 12) - 1;
+    const firstYearExpected =
+      6_000 * Math.pow(1 + monthlyInflation, 5) +
+      6_000 * Math.pow(1 + monthlyInflation, 8);
+    const secondYearExpected =
+      6_000 * Math.pow(1 + monthlyInflation, 17) +
+      6_000 * Math.pow(1 + monthlyInflation, 20);
+
     expect(result.yearlyRows.find((row) => row.year === 2026)?.plannedExtrasExpense).toBeCloseTo(
-      12_000,
+      firstYearExpected,
       0,
     );
     expect(result.yearlyRows.find((row) => row.year === 2027)?.plannedExtrasExpense).toBeCloseTo(
-      13_440,
+      secondYearExpected,
       0,
     );
   });
@@ -282,9 +347,9 @@ describe("retirement simulator spending modes", () => {
       },
       plannedExpenses: [
         {
-          id: "travel",
-          name: "Travel",
-          category: "travel",
+          id: "home",
+          name: "Home project",
+          category: "home",
           amount: 8_000,
           startYear: 2031,
           endYear: 2031,
