@@ -17,6 +17,7 @@ const baseRow: MonthlyProjectionRow = {
   portfolioWithdrawalActual: 0,
   federalTaxPayment: 0,
   socialSecurityIncome: 0,
+  pensionIncome: 0,
   totalMonthlyIncomeAvailable: 0,
   afterTaxMonthlyIncomeAvailable: 0,
   shortfall: 0,

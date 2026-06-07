@@ -24,6 +24,23 @@ export const scenarioSchema = z.object({
     person2ClaimingAge: z.number().min(62).max(70),
     annualCOLA: z.number().min(-0.5).max(1),
   }),
+  pension: z
+    .object({
+      person1MonthlyBenefit: z.number().min(0),
+      person1StartAge: z.number().min(0).max(120),
+      person1InflationAdjusted: z.boolean(),
+      person2MonthlyBenefit: z.number().min(0),
+      person2StartAge: z.number().min(0).max(120),
+      person2InflationAdjusted: z.boolean(),
+    })
+    .default({
+      person1MonthlyBenefit: 0,
+      person1StartAge: 62,
+      person1InflationAdjusted: false,
+      person2MonthlyBenefit: 0,
+      person2StartAge: 62,
+      person2InflationAdjusted: false,
+    }),
   spendingMode: z.object({
     mode: z.enum([
       "maintain_lifestyle",
@@ -33,6 +50,8 @@ export const scenarioSchema = z.object({
     ]),
     startingMonthlyLifestyleSpending: z.number().min(0),
     startingMonthlyPortfolioWithdrawal: z.number().min(0),
+    withdrawalsStartImmediately: z.boolean().default(true),
+    withdrawalStartAge: z.number().min(0).max(120).default(62),
   }),
   plannedExpenses: z
     .array(

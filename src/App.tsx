@@ -39,10 +39,20 @@ const defaultScenario: RetirementScenario = {
     person2ClaimingAge: 67,
     annualCOLA: 0.03,
   },
+  pension: {
+    person1MonthlyBenefit: 0,
+    person1StartAge: 62,
+    person1InflationAdjusted: false,
+    person2MonthlyBenefit: 0,
+    person2StartAge: 62,
+    person2InflationAdjusted: false,
+  },
   spendingMode: {
     mode: "maintain_lifestyle",
     startingMonthlyLifestyleSpending: 5_500,
     startingMonthlyPortfolioWithdrawal: 3_500,
+    withdrawalsStartImmediately: true,
+    withdrawalStartAge: 62,
   },
   plannedExpenses: [
     {

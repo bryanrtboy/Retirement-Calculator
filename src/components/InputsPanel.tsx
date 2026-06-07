@@ -144,6 +144,38 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
               }
             />
           )}
+          <CheckboxField
+            label="Start portfolio withdrawals now"
+            checked={scenario.spendingMode.withdrawalsStartImmediately}
+            onChange={(value) => {
+              update(["spendingMode", "withdrawalsStartImmediately"], value);
+              if (!value) {
+                update(
+                  ["spendingMode", "withdrawalStartAge"],
+                  Math.max(
+                    scenario.people.person1.currentAge,
+                    scenario.people.person2.currentAge,
+                  ),
+                );
+              }
+            }}
+          />
+          {!scenario.spendingMode.withdrawalsStartImmediately && (
+            <>
+              <NumberField
+                label="Portfolio withdrawal start age"
+                value={scenario.spendingMode.withdrawalStartAge}
+                onChange={(value) =>
+                  update(["spendingMode", "withdrawalStartAge"], Math.round(value))
+                }
+              />
+              <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs leading-5 text-muted-foreground">
+                Before this age, portfolio-funded lifestyle spending and planned extras are paused.
+                Social Security and pension income can still appear if their own start ages are
+                reached.
+              </p>
+            </>
+          )}
         </Section>
 
         <Section icon={<Users />} title="Household">
@@ -242,6 +274,43 @@ export function InputsPanel({ scenario, onScenarioChange, onReset }: InputsPanel
             label="Annual COLA"
             value={scenario.socialSecurity.annualCOLA}
             onChange={(value) => update(["socialSecurity", "annualCOLA"], value)}
+          />
+        </Section>
+
+        <Section icon={<Landmark />} title="Pension">
+          <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs leading-5 text-muted-foreground">
+            Not all pensions adjust for inflation. Many private pensions are fixed nominal
+            payments; public plans may have a full, capped, or occasional COLA.
+          </p>
+          <CurrencyField
+            label="Person 1 monthly pension"
+            value={scenario.pension.person1MonthlyBenefit}
+            onChange={(value) => update(["pension", "person1MonthlyBenefit"], value)}
+          />
+          <NumberField
+            label="Person 1 pension start age"
+            value={scenario.pension.person1StartAge}
+            onChange={(value) => update(["pension", "person1StartAge"], value)}
+          />
+          <CheckboxField
+            label="Person 1 pension adjusts with inflation"
+            checked={scenario.pension.person1InflationAdjusted}
+            onChange={(value) => update(["pension", "person1InflationAdjusted"], value)}
+          />
+          <CurrencyField
+            label="Person 2 monthly pension"
+            value={scenario.pension.person2MonthlyBenefit}
+            onChange={(value) => update(["pension", "person2MonthlyBenefit"], value)}
+          />
+          <NumberField
+            label="Person 2 pension start age"
+            value={scenario.pension.person2StartAge}
+            onChange={(value) => update(["pension", "person2StartAge"], value)}
+          />
+          <CheckboxField
+            label="Person 2 pension adjusts with inflation"
+            checked={scenario.pension.person2InflationAdjusted}
+            onChange={(value) => update(["pension", "person2InflationAdjusted"], value)}
           />
         </Section>
 

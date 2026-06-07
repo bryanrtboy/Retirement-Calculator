@@ -57,12 +57,12 @@ export function ResultsCards({ scenario, result, displayMode }: ResultsCardsProp
       : "After-tax monthly income when SS starts";
   const referenceIncomeNote = isLifestyleMode
     ? displayMode === "today"
-      ? "Shown in today's purchasing power, so Social Security should not look like a lifestyle raise."
+      ? "Shown in today's purchasing power, so Social Security or pension income should not look like a lifestyle raise."
       : `Future nominal dollars; same purchasing power as ${money.format(result.startingMonthlyLifestyleSpending)} today.`
-    : "Recurring withdrawal plus Social Security after estimated federal tax; planned extras are separate.";
+    : "Recurring withdrawal plus Social Security and pension income after estimated federal tax; planned extras are separate.";
   const referenceIncomeTooltip = isLifestyleMode
-    ? "In lifestyle modes, Social Security replaces part of the portfolio withdrawal. The household spending target should stay steady in today's dollars; planned extras are tracked separately."
-    : "In portfolio withdrawal modes, the base investment draw continues after Social Security starts. Social Security stacks on top, so spendable income can rise later even though the safe base withdrawal is lower.";
+    ? "In lifestyle modes, Social Security and pension income replace part of the portfolio withdrawal. The household spending target should stay steady in today's dollars; planned extras are tracked separately."
+    : "In portfolio withdrawal modes, the base investment draw continues after Social Security or pension income starts. Those income sources stack on top, so spendable income can rise later even though the safe base withdrawal is lower.";
   const startingTax = firstRow.federalTaxPayment;
   const lastRow = result.monthlyRows[result.monthlyRows.length - 1];
   const displayedReferenceIncome = displayDollarValue({
@@ -108,6 +108,12 @@ export function ResultsCards({ scenario, result, displayMode }: ResultsCardsProp
     scenario,
     displayMode,
     select: (row) => row.socialSecurityIncome,
+  });
+  const displayedTotalPension = displayDollarTotal({
+    rows: result.monthlyRows,
+    scenario,
+    displayMode,
+    select: (row) => row.pensionIncome,
   });
   const largestPlannedExtraRow = result.yearlyRows.reduce<
     { year: number; amount: number } | undefined
@@ -211,6 +217,12 @@ export function ResultsCards({ scenario, result, displayMode }: ResultsCardsProp
     {
       label: "Total Social Security",
       value: money.format(displayedTotalSocialSecurity),
+      icon: Landmark,
+      tone: "primary",
+    },
+    {
+      label: "Total pension",
+      value: money.format(displayedTotalPension),
       icon: Landmark,
       tone: "primary",
     },
@@ -398,7 +410,12 @@ function TaxDetail({
               <span className="truncate text-muted-foreground">
                 gross{" "}
                 {money.format(
-                  displayYearlyValue(row.portfolioWithdrawal + row.socialSecurityIncome, row.year, scenario, displayMode),
+                  displayYearlyValue(
+                    row.portfolioWithdrawal + row.socialSecurityIncome + row.pensionIncome,
+                    row.year,
+                    scenario,
+                    displayMode,
+                  ),
                 )}
               </span>
               <span className="font-semibold">
@@ -457,25 +474,25 @@ function getModeSummary(
     case "maintain_lifestyle":
       return {
         title: "Maintain lifestyle amount",
-        description: `${money.format(result.startingMonthlyLifestyleSpending)} is after-tax household spending${suffix} before planned extras. Social Security is included inside that amount, while planned extras and estimated federal tax are funded from the portfolio.`,
-        formula: "Portfolio withdrawal = lifestyle spending + planned extras - Social Security + estimated federal tax",
+        description: `${money.format(result.startingMonthlyLifestyleSpending)} is after-tax household spending${suffix} before planned extras. Social Security and pension income are included inside that amount, while planned extras and estimated federal tax are funded from the portfolio.`,
+        formula: "Portfolio withdrawal = lifestyle spending + planned extras - Social Security - pension + estimated federal tax",
       };
     case "fixed_portfolio_withdrawal":
       return {
         title: "Withdraw base amount from portfolio",
-        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the recurring gross portfolio withdrawal${suffix}. Social Security is added on top after benefits start, and planned extras are separate portfolio draws in scheduled months.`,
+        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the recurring gross portfolio withdrawal${suffix}. Social Security and pension income are added on top after they start, and planned extras are separate portfolio draws in scheduled months.`,
         formula: "Portfolio draw = base monthly withdrawal + scheduled planned extras",
       };
     case "solve_max_lifestyle":
       return {
         title: "Solved maximum lifestyle amount",
         description: `${money.format(result.startingMonthlyLifestyleSpending)} is the highest starting after-tax household spending${suffix} before planned extras that meets the ending portfolio target.`,
-        formula: "Portfolio withdrawal = solved lifestyle spending + planned extras - Social Security + estimated federal tax",
+        formula: "Portfolio withdrawal = solved lifestyle spending + planned extras - Social Security - pension + estimated federal tax",
       };
     case "solve_max_portfolio_withdrawal":
       return {
         title: "Solved maximum base portfolio withdrawal",
-        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the highest starting recurring gross withdrawal${suffix} from investments. Social Security is still included as extra income, so compare this mode to the after-tax income card, not directly to lifestyle spending.`,
+        description: `${money.format(result.startingMonthlyPortfolioWithdrawal)} is the highest starting recurring gross withdrawal${suffix} from investments. Social Security and pension income are still included as extra income, so compare this mode to the after-tax income card, not directly to lifestyle spending.`,
         formula: "Portfolio draw = solved base withdrawal + scheduled planned extras",
       };
   }

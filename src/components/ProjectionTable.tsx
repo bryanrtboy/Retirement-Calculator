@@ -29,7 +29,7 @@ export function ProjectionTable({ scenario, rows, displayMode }: ProjectionTable
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1200px] border-collapse text-sm">
+        <table className="w-full min-w-[1280px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-[0.08em] text-muted-foreground">
               <th className="py-3 pr-4">Year</th>
@@ -42,6 +42,7 @@ export function ProjectionTable({ scenario, rows, displayMode }: ProjectionTable
               <th className="py-3 pr-4 text-right">Withdrawal</th>
               <th className="py-3 pr-4 text-right">Federal Tax</th>
               <th className="py-3 pr-4 text-right">Social Security</th>
+              <th className="py-3 pr-4 text-right">Pension</th>
               <th className="py-3 pr-4 text-right">Income / Spending</th>
               <th className="py-3 pr-4 text-right">After Tax</th>
               <th className="py-3 pr-4 text-right">Shortfall</th>
@@ -62,6 +63,7 @@ export function ProjectionTable({ scenario, rows, displayMode }: ProjectionTable
                 <td className="py-3 pr-4 text-right">{money.format(row.portfolioWithdrawal)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.federalTaxEstimate)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.socialSecurityIncome)}</td>
+                <td className="py-3 pr-4 text-right">{money.format(row.pensionIncome)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.totalIncomeOrSpending)}</td>
                 <td className="py-3 pr-4 text-right">{money.format(row.afterTaxIncomeOrSpending)}</td>
                 <td className="py-3 pr-4 text-right text-destructive">
@@ -120,6 +122,7 @@ function aggregateDisplayRows({
       portfolioWithdrawal: sum((row) => row.portfolioWithdrawalActual),
       federalTaxEstimate: sum((row) => row.federalTaxPayment),
       socialSecurityIncome: sum((row) => row.socialSecurityIncome),
+      pensionIncome: sum((row) => row.pensionIncome),
       totalIncomeOrSpending: sum((row) => row.totalMonthlyIncomeAvailable),
       afterTaxIncomeOrSpending: sum((row) => row.afterTaxMonthlyIncomeAvailable),
       shortfall: sum((row) => row.shortfall),

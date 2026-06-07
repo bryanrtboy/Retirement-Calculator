@@ -56,6 +56,7 @@ export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
         label: `${row.year}.${String(row.monthInYear).padStart(2, "0")}`,
         portfolio: show(row.endingPortfolioBalance),
         socialSecurity: show(row.socialSecurityIncome),
+        pension: show(row.pensionIncome),
         withdrawal: show(Math.max(0, row.portfolioWithdrawalActual - row.federalTaxPayment)),
         federalTax: show(row.federalTaxPayment),
         plannedExtras: show(row.plannedExtrasExpense),
@@ -78,8 +79,8 @@ export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
                 ? "The orange line is after-tax lifestyle spending. The teal tax line is the estimated monthly federal tax funded from the portfolio."
                 : "The orange line is after-tax income. The teal tax line estimates monthly federal tax."
               : isLifestyleMode
-                ? "Bars show gross monthly cashflow: spending-funded withdrawals, federal tax, and Social Security."
-                : "Bars show gross monthly cashflow: after-tax withdrawal, federal tax, and Social Security."}
+                ? "Bars show gross monthly cashflow: spending-funded withdrawals, federal tax, Social Security, and pension income."
+                : "Bars show gross monthly cashflow: after-tax withdrawal, federal tax, Social Security, and pension income."}
           </p>
         </div>
         <div className="inline-grid grid-cols-2 rounded-md border border-border bg-white p-1 shadow-sm">
@@ -191,6 +192,16 @@ export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
                 strokeWidth={2}
                 dot={false}
               />
+              <Line
+                isAnimationActive
+                animationDuration={350}
+                type="monotone"
+                dataKey="pension"
+                name="Pension"
+                stroke="#4f7f45"
+                strokeWidth={2}
+                dot={false}
+              />
             </AreaChart>
           ) : (
             <ComposedChart data={chartRows} margin={{ top: 10, right: 18, bottom: 8, left: 0 }}>
@@ -252,6 +263,15 @@ export function MainChart({ scenario, rows, displayMode }: MainChartProps) {
                 name="Social Security"
                 stackId="income"
                 fill="#835b9b"
+              />
+              <Bar
+                isAnimationActive
+                animationDuration={350}
+                yAxisId="cashflow"
+                dataKey="pension"
+                name="Pension"
+                stackId="income"
+                fill="#4f7f45"
                 radius={[2, 2, 0, 0]}
               />
               <Bar
@@ -313,6 +333,7 @@ function labelFor(key: string) {
     federalTax: "Federal tax estimate",
     plannedExtras: "Planned extras",
     socialSecurity: "Social Security",
+    pension: "Pension",
     shortfall: "Shortfall",
   };
   return labels[key] ?? key;

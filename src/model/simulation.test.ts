@@ -28,10 +28,20 @@ const baseScenario: RetirementScenario = {
     person2ClaimingAge: 65,
     annualCOLA: 0,
   },
+  pension: {
+    person1MonthlyBenefit: 0,
+    person1StartAge: 65,
+    person1InflationAdjusted: false,
+    person2MonthlyBenefit: 0,
+    person2StartAge: 63,
+    person2InflationAdjusted: false,
+  },
   spendingMode: {
     mode: "maintain_lifestyle",
     startingMonthlyLifestyleSpending: 6_000,
     startingMonthlyPortfolioWithdrawal: 6_000,
+    withdrawalsStartImmediately: true,
+    withdrawalStartAge: 65,
   },
   plannedExpenses: [],
   home: {
@@ -65,6 +75,85 @@ describe("retirement simulator spending modes", () => {
     expect(result.totalSocialSecurityReceived).toBe(24_000);
     expect(result.totalPortfolioWithdrawals).toBe(216_000);
     expect(result.endingPortfolioBalance).toBe(284_000);
+  });
+
+  it("uses pension income to reduce withdrawals in lifestyle mode", () => {
+    const withoutPension = simulateRetirement(baseScenario);
+    const withPension = simulateRetirement({
+      ...baseScenario,
+      pension: {
+        ...baseScenario.pension,
+        person1MonthlyBenefit: 1_000,
+        person1StartAge: 65,
+      },
+    });
+
+    expect(withPension.totalPensionReceived).toBe(36_000);
+    expect(withPension.totalPortfolioWithdrawals).toBeLessThan(
+      withoutPension.totalPortfolioWithdrawals,
+    );
+  });
+
+  it("adds pension income on top in fixed withdrawal mode", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      spendingMode: {
+        ...baseScenario.spendingMode,
+        mode: "fixed_portfolio_withdrawal",
+      },
+      pension: {
+        ...baseScenario.pension,
+        person1MonthlyBenefit: 1_000,
+        person1StartAge: 65,
+      },
+    });
+
+    expect(result.totalPensionReceived).toBe(36_000);
+    expect(result.totalPortfolioWithdrawals).toBe(216_000);
+    expect(result.totalAfterTaxIncome).toBeGreaterThan(216_000);
+  });
+
+  it("inflates pension income only when marked inflation-adjusted", () => {
+    const fixed = simulateRetirement({
+      ...baseScenario,
+      plan: { ...baseScenario.plan, planningEndAge: 66 },
+      portfolio: { ...baseScenario.portfolio, annualInflation: 0.12 },
+      pension: {
+        ...baseScenario.pension,
+        person1MonthlyBenefit: 1_000,
+        person1StartAge: 65,
+        person1InflationAdjusted: false,
+      },
+    });
+    const inflationAdjusted = simulateRetirement({
+      ...baseScenario,
+      plan: { ...baseScenario.plan, planningEndAge: 66 },
+      portfolio: { ...baseScenario.portfolio, annualInflation: 0.12 },
+      pension: {
+        ...baseScenario.pension,
+        person1MonthlyBenefit: 1_000,
+        person1StartAge: 65,
+        person1InflationAdjusted: true,
+      },
+    });
+
+    expect(fixed.monthlyRows[11].pensionIncome).toBe(1_000);
+    expect(inflationAdjusted.monthlyRows[11].pensionIncome).toBeGreaterThan(1_000);
+  });
+
+  it("can delay portfolio withdrawals until a selected household age", () => {
+    const result = simulateRetirement({
+      ...baseScenario,
+      spendingMode: {
+        ...baseScenario.spendingMode,
+        withdrawalsStartImmediately: false,
+        withdrawalStartAge: 66,
+      },
+    });
+
+    expect(result.monthlyRows[0].portfolioWithdrawalRequested).toBe(0);
+    expect(result.monthlyRows[11].portfolioWithdrawalRequested).toBe(0);
+    expect(result.monthlyRows[12].portfolioWithdrawalRequested).toBeGreaterThan(0);
   });
 
   it("treats planned extras as separate portfolio draws in fixed withdrawal mode", () => {

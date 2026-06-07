@@ -32,10 +32,21 @@ export interface SocialSecurityInput {
   annualCOLA: number;
 }
 
+export interface PensionInput {
+  person1MonthlyBenefit: number;
+  person1StartAge: number;
+  person1InflationAdjusted: boolean;
+  person2MonthlyBenefit: number;
+  person2StartAge: number;
+  person2InflationAdjusted: boolean;
+}
+
 export interface SpendingModeInput {
   mode: SpendingMode;
   startingMonthlyLifestyleSpending: number;
   startingMonthlyPortfolioWithdrawal: number;
+  withdrawalsStartImmediately: boolean;
+  withdrawalStartAge: number;
 }
 
 export interface HomeInput {
@@ -66,6 +77,7 @@ export interface RetirementScenario {
   plan: PlanInput;
   portfolio: PortfolioInput;
   socialSecurity: SocialSecurityInput;
+  pension: PensionInput;
   spendingMode: SpendingModeInput;
   plannedExpenses: PlannedExpenseInput[];
   home: HomeInput;
@@ -86,6 +98,7 @@ export interface MonthlyProjectionRow {
   portfolioWithdrawalActual: number;
   federalTaxPayment: number;
   socialSecurityIncome: number;
+  pensionIncome: number;
   totalMonthlyIncomeAvailable: number;
   afterTaxMonthlyIncomeAvailable: number;
   shortfall: number;
@@ -106,6 +119,7 @@ export interface YearlyProjectionRow {
   portfolioWithdrawal: number;
   federalTaxEstimate: number;
   socialSecurityIncome: number;
+  pensionIncome: number;
   totalIncomeOrSpending: number;
   afterTaxIncomeOrSpending: number;
   shortfall: number;
@@ -124,6 +138,7 @@ export interface SimulationResult {
   totalFederalTaxEstimate: number;
   totalAfterTaxIncome: number;
   totalSocialSecurityReceived: number;
+  totalPensionReceived: number;
   totalPlannedExtras: number;
   largestPlannedExtraYear?: number;
   largestPlannedExtraAmount?: number;

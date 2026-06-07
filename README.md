@@ -45,6 +45,8 @@ NODE_VERSION=22
 - Simulates retirement cashflow month by month.
 - Supports a retired couple with separate Social Security claiming ages.
 - Adjusts Social Security for claiming before or after age 67.
+- Supports optional monthly pension income for either person.
+- Lets portfolio withdrawals start now or at a selected later household age.
 - Inflates spending, Social Security, and planned extras over time.
 - Estimates federal taxes.
 - Supports optional taxable savings, pooled with the retirement portfolio.
@@ -99,6 +101,8 @@ years.
 
 - Investment return is nominal.
 - Portfolio growth is applied monthly before withdrawals.
+- Portfolio-funded lifestyle spending, base withdrawals, and planned extras can be delayed until a
+  selected withdrawal start age.
 - The simulator calculates in nominal dollars, then converts the display to today's dollars unless
   future dollars are selected.
 - Taxable savings are pooled with the retirement portfolio when enabled.
@@ -106,6 +110,8 @@ years.
 - Federal tax is estimated using 2026 married-filing-jointly rules.
 - Social Security inputs are age-67 benefits in today's dollars.
 - Social Security COLA is applied from today through the payment month.
+- Pension income is treated as ordinary taxable income. Fixed pensions stay flat in nominal dollars;
+  inflation-adjusted pensions grow with the inflation assumption.
 - Home equity is tracked only and does not fund withdrawals.
 - Settings are stored only in the local browser with `localStorage`.
 
